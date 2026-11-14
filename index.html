@@ -8,7 +8,7 @@
 <script src="firebase-config.js"></script>
 <script>/* ===== Lớp kết nối Firebase: đăng nhập Google + phân quyền + dữ liệu Firestore ===== */
 (function(){
-  const ROLE_TXT={admin:'Quản trị',nhaplieu:'Nhập liệu',xem:'Chỉ xem'};
+  const ROLE_TXT={admin:'Quản trị',nhaplieu:'Nhập liệu',xem:'Chỉ xem',chan:'Đã chặn'};
   window.ROLE_TXT=ROLE_TXT;
   const gate=document.createElement('div');gate.id='fbGate';
   gate.innerHTML='<div class="gbox"><div class="glogo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>'+
@@ -38,10 +38,12 @@
     msg('Chưa đăng nhập được ('+(e&&e.code||'lỗi')+'). Thử lại.',true)}};
   document.addEventListener('click',e=>{if(e.target.id==='gIn')signIn();if(e.target.id==='gOut'){CTX.auth.signOut()}});
   const startAuth=()=>CTX.auth.onAuthStateChanged(async u=>{const bi=document.getElementById('gIn'),bo=document.getElementById('gOut');
-    if(!u){msg('Đăng nhập bằng tài khoản Google đã được cấp quyền để dùng trang.');if(bi)bi.hidden=false;if(bo)bo.hidden=true;return}
+    if(!u){msg('Đăng nhập bằng tài khoản Google để xem. Người được cấp quyền sẽ ghi được dữ liệu.');if(bi)bi.hidden=false;if(bo)bo.hidden=true;return}
     if(bi)bi.hidden=true;CTX.email=String(u.email||'').toLowerCase();CTX.name=u.displayName||CTX.email;msg('Đang kiểm tra quyền của '+CTX.email+'…');
-    try{const d=await CTX.db.doc('quyen/'+CTX.email).get();const r=d.exists?d.data():null;
-      if(!r||!ROLE_TXT[r.role]){msg('Tài khoản '+CTX.email+' chưa được cấp quyền. Nhờ Quản trị trang thêm email này vào danh sách người dùng.',true);if(bo)bo.hidden=false;return}
+    try{const d=await CTX.db.doc('quyen/'+CTX.email).get();let r=d.exists?d.data():null;
+      if(!r){r={role:'xem',tuDong:true,ten:CTX.name,lanCuoi:new Date().toISOString()};await CTX.db.doc('quyen/'+CTX.email).set(r)}
+      if(r.role==='chan'){msg('Tài khoản '+CTX.email+' đã bị chặn truy cập. Liên hệ Quản trị trang nếu cần xem.',true);if(bo)bo.hidden=false;return}
+      if(!ROLE_TXT[r.role]){msg('Tài khoản '+CTX.email+' chưa được cấp quyền. Nhờ Quản trị trang kiểm tra.',true);if(bo)bo.hidden=false;return}
       CTX.role=r.role;CTX.owner=!!r.owner;
       try{const up={lanCuoi:new Date().toISOString()};if(!r.ten)up.ten=CTX.name;await CTX.db.doc('quyen/'+CTX.email).set(up,{merge:true})}catch(e){}
       gate.remove();resolveReady();
@@ -49,7 +51,7 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startAuth);else startAuth();
   const user={id:async()=>CTX.email,can:async p=>p==='data.write'?(CTX.role==='admin'||CTX.role==='nhaplieu'):true,
     canEdit:async()=>CTX.role==='admin',isOwner:async()=>CTX.owner,
-    profiles:async ids=>{const o={};await Promise.all(ids.map(async id=>{if(!id||!/@/.test(id)){o[id]={name:id&&!/^u_/.test(id)?id:''};return}try{const d=await CTX.db.doc('quyen/'+id).get();o[id]={name:d.exists?(d.data().ten||id):id}}catch(e){o[id]={name:id}}}));return o}};
+    profiles:async ids=>{const o={};await Promise.all(ids.map(async id=>{if(!id||!/@/.test(id)){o[id]={name:id&&!/^u_/.test(id)?id:''};return}try{const d=await CTX.db.doc('quyen/'+id).get();o[id]={name:d.exists?(d.data().ten||id):id}}catch(e){o[id]={name:''}}}));return o}};
   const downloads={save:async({filename,data})=>{const url=URL.createObjectURL(data);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return {status:'saved'}}};
   window.claude={use:async n=>{await READY;return n==='db'?CTX.db:n==='user'?user:n==='downloads'?downloads:null}};
 })();
@@ -2407,12 +2409,12 @@ function choReport(){const R=choStats();if(!R.length)return '';
   document.querySelectorAll('nav.tabs,nav.bottom').forEach(n=>{const last=[...n.querySelectorAll('a[data-v]')].pop();if(!last)return;const a=document.createElement('a');a.href='#nguoi-dung';a.dataset.v='nguoi-dung';a.hidden=true;a.className='ndlink';a.innerHTML=ic+'<span>Người dùng</span>';last.after(a)});
   const sec=document.createElement('section');sec.className='view';sec.id='v-nguoi-dung';sec.hidden=true;
   sec.innerHTML=`<div class="panel"><div class="sec-head"><h2>Người dùng và phân quyền</h2><span class="hint" id="ndCount"></span></div>
-    <p class="hint">Chỉ email trong danh sách mới đăng nhập được. <b>Quản trị</b>: toàn quyền, sửa xóa, import, danh pháp, quản lý người dùng. <b>Nhập liệu</b>: ghi phiếu nhận, đợt trả, import. <b>Chỉ xem</b>: xem và xuất báo cáo.</p>
+    <p class="hint">Ai có link và đăng nhập Google đều được <b>Chỉ xem</b> tự động (ghi chú "Tự động"). <b>Quản trị</b>: toàn quyền, sửa xóa, import, danh pháp, quản lý người dùng. <b>Nhập liệu</b>: ghi phiếu nhận, đợt trả, import. <b>Chỉ xem</b>: xem và xuất báo cáo. <b>Đã chặn</b>: không vào được trang.</p>
     <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Email</th><th>Tên hiển thị</th><th>Quyền</th><th>Đăng nhập gần nhất</th><th></th></tr></thead><tbody id="ndBody"></tbody></table></div>
     <form class="entry" id="ndForm" novalidate style="margin-top:14px">
       <label>Email Google<input id="ndEmail" type="email" placeholder="ten@gmail.com" required></label>
       <label>Tên hiển thị<input id="ndTen" placeholder="VD: Tài – Tổ vật tư"></label>
-      <label>Quyền<select id="ndRole"><option value="nhaplieu">Nhập liệu</option><option value="xem">Chỉ xem</option><option value="admin">Quản trị</option></select></label>
+      <label>Quyền<select id="ndRole"><option value="nhaplieu">Nhập liệu</option><option value="xem">Chỉ xem</option><option value="admin">Quản trị</option><option value="chan">Chặn truy cập</option></select></label>
       <div class="full row"><button class="primary" type="submit">Thêm / cập nhật người dùng</button></div>
     </form><div id="ndMsg" hidden style="margin-top:10px"></div></div>
     <div class="panel" id="napPanel" hidden><div class="sec-head"><h2>Nạp dữ liệu từ trang cũ</h2></div>
@@ -2431,14 +2433,14 @@ function ndInit(){const C=FB_CTX;$('uName').textContent=(C.name||C.email)+' · '
   if(!adm)return;C.db.collection('quyen').onSnapshot(sn=>{ND.list={};sn.docs.forEach(d=>ND.list[d.id]={...d.data(),id:d.id});ndRender()},()=>{})}
 function ndRender(){const L=Object.values(ND.list).sort((a,b)=>(a.role||'').localeCompare(b.role||'')||a.id.localeCompare(b.id));$('ndCount').textContent=L.length+' người';
   $('ndBody').innerHTML=L.map(u=>{const me=u.id===FB_CTX.email;const cf=ND.conf===u.id;
-    return '<tr><td class="code">'+esc(u.id)+(u.owner?' <span class="chip">Chủ trang</span>':'')+'</td><td>'+esc(u.ten||'')+'</td><td>'+(u.owner||me?esc(ROLE_TXT[u.role]||u.role):'<select data-ndrole="'+esc(u.id)+'">'+Object.entries(ROLE_TXT).map(([k,v])=>'<option value="'+k+'"'+(k===u.role?' selected':'')+'>'+v+'</option>').join('')+'</select>')+'</td><td>'+esc(u.lanCuoi?dmy(u.lanCuoi.slice(0,10)):'Chưa đăng nhập')+'</td><td>'+
+    return '<tr><td class="code">'+esc(u.id)+(u.owner?' <span class="chip">Chủ trang</span>':'')+(u.tuDong?' <span class="chip">Tự động</span>':'')+'</td><td>'+esc(u.ten||'')+'</td><td>'+(u.owner||me?esc(ROLE_TXT[u.role]||u.role):'<select data-ndrole="'+esc(u.id)+'">'+Object.entries(ROLE_TXT).map(([k,v])=>'<option value="'+k+'"'+(k===u.role?' selected':'')+'>'+v+'</option>').join('')+'</select>')+'</td><td>'+esc(u.lanCuoi?dmy(u.lanCuoi.slice(0,10)):'Chưa đăng nhập')+'</td><td>'+
       (u.owner||me?'':cf?'<button class="small danger" data-ndx2="'+esc(u.id)+'">Xác nhận xóa</button> <button class="small" data-ndx0="1">Thôi</button>':'<button class="small" data-ndx="'+esc(u.id)+'">Xóa</button>')+'</td></tr>'}).join('')}
-$('ndBody').addEventListener('change',async e=>{const id=e.target.dataset.ndrole;if(!id)return;try{await FB_CTX.db.doc('quyen/'+id).set({role:e.target.value},{merge:true});showMsg('ndMsg','ok','Đã đổi quyền của '+id+' thành '+ROLE_TXT[e.target.value]+'.')}catch(err){showMsg('ndMsg','err','Chưa đổi được ('+(err.code||err)+').')}});
+$('ndBody').addEventListener('change',async e=>{const id=e.target.dataset.ndrole;if(!id)return;try{await FB_CTX.db.doc('quyen/'+id).set({role:e.target.value,tuDong:false},{merge:true});showMsg('ndMsg','ok','Đã đổi quyền của '+id+' thành '+ROLE_TXT[e.target.value]+'.')}catch(err){showMsg('ndMsg','err','Chưa đổi được ('+(err.code||err)+').')}});
 $('ndBody').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.ndx){ND.conf=b.dataset.ndx;ndRender();return}if(b.dataset.ndx0){ND.conf=null;ndRender();return}
   if(b.dataset.ndx2){try{await FB_CTX.db.doc('quyen/'+b.dataset.ndx2).delete();ND.conf=null;showMsg('ndMsg','ok','Đã xóa quyền truy cập của '+b.dataset.ndx2+'.')}catch(err){showMsg('ndMsg','err','Chưa xóa được ('+(err.code||err)+').')}}});
 $('ndForm').addEventListener('submit',async e=>{e.preventDefault();const em=$('ndEmail').value.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return showMsg('ndMsg','err','Email chưa đúng.');
-  const ten=$('ndTen').value.trim();const d={role:$('ndRole').value};if(ten){d.ten=ten;d.tenTay=true}
+  const ten=$('ndTen').value.trim();const d={role:$('ndRole').value,tuDong:false};if(ten){d.ten=ten;d.tenTay=true}
   try{await FB_CTX.db.doc('quyen/'+em).set(d,{merge:true});showMsg('ndMsg','ok','Đã cấp quyền '+ROLE_TXT[d.role]+' cho '+em+'. Người này mở link và đăng nhập Google bằng đúng email này.');$('ndEmail').value='';$('ndTen').value=''}catch(err){showMsg('ndMsg','err','Chưa lưu được ('+(err.code||err)+').')}});
 $('napFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
   try{const j=JSON.parse(await f.text());const cols=Object.keys(j).filter(k=>j[k]&&typeof j[k]==='object');ND.nap=j;
