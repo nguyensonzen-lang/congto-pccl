@@ -43,13 +43,13 @@
     try{const d=await CTX.db.doc('quyen/'+CTX.email).get();const r=d.exists?d.data():null;
       if(!r||!ROLE_TXT[r.role]){msg('Tài khoản '+CTX.email+' chưa được cấp quyền. Nhờ Quản trị trang thêm email này vào danh sách người dùng.',true);if(bo)bo.hidden=false;return}
       CTX.role=r.role;CTX.owner=!!r.owner;
-      if(!r.ten||r.ten!==CTX.name&&!r.tenTay){try{await CTX.db.doc('quyen/'+CTX.email).set({ten:CTX.name,lanCuoi:new Date().toISOString()},{merge:true})}catch(e){}}
+      try{const up={lanCuoi:new Date().toISOString()};if(!r.ten)up.ten=CTX.name;await CTX.db.doc('quyen/'+CTX.email).set(up,{merge:true})}catch(e){}
       gate.remove();resolveReady();
     }catch(e){msg('Không đọc được quyền ('+(e&&e.code||'lỗi')+'). Kiểm tra mạng rồi tải lại trang.',true);if(bo)bo.hidden=false}});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startAuth);else startAuth();
   const user={id:async()=>CTX.email,can:async p=>p==='data.write'?(CTX.role==='admin'||CTX.role==='nhaplieu'):true,
     canEdit:async()=>CTX.role==='admin',isOwner:async()=>CTX.owner,
-    profiles:async ids=>{const o={};await Promise.all(ids.map(async id=>{if(!id||!/@/.test(id)){o[id]={name:''};return}try{const d=await CTX.db.doc('quyen/'+id).get();o[id]={name:d.exists?(d.data().ten||id):id}}catch(e){o[id]={name:id}}}));return o}};
+    profiles:async ids=>{const o={};await Promise.all(ids.map(async id=>{if(!id||!/@/.test(id)){o[id]={name:id&&!/^u_/.test(id)?id:''};return}try{const d=await CTX.db.doc('quyen/'+id).get();o[id]={name:d.exists?(d.data().ten||id):id}}catch(e){o[id]={name:id}}}));return o}};
   const downloads={save:async({filename,data})=>{const url=URL.createObjectURL(data);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return {status:'saved'}}};
   window.claude={use:async n=>{await READY;return n==='db'?CTX.db:n==='user'?user:n==='downloads'?downloads:null}};
 })();
