@@ -448,9 +448,9 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
     </div>
     <div class="panel">
       <div class="sec-head"><h2>Cân đối nhận – trả theo chủng loại</h2></div>
-      <p class="hint">Còn giữ tại PCCL = Nhận từ TNĐL − Trả lỗi/sai − Trả thừa − Về dự phòng tập trung − Đang ở TNĐL (gửi lập trình chưa về). Công tơ tháo hồi là công tơ cũ trên lưới, chỉ thống kê riêng, không trừ vào số nhận.</p>
+      <p class="hint">Còn giữ tại PCCL = Nhận từ TNĐL − Trả lỗi/sai − Trả thừa − Về dự phòng tập trung − Đang ở TNĐL (gửi lập trình chưa về) − Đang ở TNĐL (gửi kiểm định chưa về). Công tơ tháo hồi là công tơ cũ trên lưới, chỉ thống kê riêng, không trừ vào số nhận.</p>
       <div class="tablewrap" style="margin-top:10px"><table>
-        <thead><tr><th>Chủng loại</th><th class="n">Nhận từ TNĐL</th><th class="n">Trả lỗi/sai</th><th class="n">Trả thừa</th><th class="n">Về DPTT</th><th class="n">Gửi lập trình</th><th class="n">Đã nhận lại</th><th class="n">Đang ở TNĐL</th><th class="n">Còn giữ tại PCCL</th><th class="n">Tháo hồi đã trả</th></tr></thead>
+        <thead><tr><th>Chủng loại</th><th class="n">Nhận từ TNĐL</th><th class="n">Trả lỗi/sai</th><th class="n">Trả thừa</th><th class="n">Về DPTT</th><th class="n">Gửi lập trình</th><th class="n">Đã nhận lại</th><th class="n">Đang ở TNĐL</th><th class="n">Gửi kiểm định</th><th class="n">Đã nhận lại (KĐ)</th><th class="n">Đang ở TNĐL (KĐ)</th><th class="n">Còn giữ tại PCCL</th><th class="n">Tháo hồi đã trả</th></tr></thead>
         <tbody id="canDoiBody"></tbody></table></div>
     </div>
     <div class="panel">
@@ -462,7 +462,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
     <div class="panel">
       <div class="sec-head"><h2>Đã trả theo tháng</h2></div>
       <div class="tablewrap" style="margin-top:10px"><table>
-        <thead><tr><th>Tháng</th><th class="n">Tháo hồi</th><th class="n">Lỗi/sai CL</th><th class="n">Lập trình lại</th><th class="n">Thừa</th><th class="n">Về DPTT</th><th class="n">Tổng</th><th class="n">Số đợt</th></tr></thead>
+        <thead><tr><th>Tháng</th><th class="n">Tháo hồi</th><th class="n">Lỗi/sai CL</th><th class="n">Lập trình lại</th><th class="n">Kiểm định lại</th><th class="n">Thừa</th><th class="n">Về DPTT</th><th class="n">Tổng</th><th class="n">Số đợt</th></tr></thead>
         <tbody id="trThangBody"></tbody></table></div>
     </div>
   </section>
@@ -600,7 +600,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
         <label>Thuộc văn bản<select id="kVb"></select></label>
         <label>STT trong văn bản<input type="number" id="kStt" min="1" inputmode="numeric"></label>
         <label>Mã vật tư<input id="kMa"></label>
-        <label>Lý do trả<select id="kLoai"><option value="thaohoi">Tháo hồi từ lưới</option><option value="loi">Lỗi / sai chủng loại</option><option value="laptrinh">Lập trình lại</option><option value="thua">Thừa, không dùng hết</option><option value="dptt">Về dự phòng tập trung</option></select></label>
+        <label>Lý do trả<select id="kLoai"><option value="thaohoi">Tháo hồi từ lưới</option><option value="loi">Lỗi / sai chủng loại</option><option value="laptrinh">Lập trình lại</option><option value="kiemdinh">Kiểm định lại</option><option value="thua">Thừa, không dùng hết</option><option value="dptt">Về dự phòng tập trung</option></select></label>
         <label class="full">Tên thiết bị<input id="kTen"></label>
         <label>Nhóm chủng loại<input id="kNhom" list="nhomList" placeholder="Chọn hoặc gõ mới"></label>
         <label>Số lô (nếu có)<input id="kLo"></label>
@@ -1073,13 +1073,14 @@ return {render:renderImport,loadRows};
 }
 
 /* =================== LUỒNG CHUYỂN TRẢ =================== */
-const LOAI={thaohoi:'Tháo hồi từ lưới',loi:'Lỗi / sai chủng loại',laptrinh:'Lập trình lại',thua:'Thừa, không dùng hết',dptt:'Về dự phòng tập trung'};
-const LOAI_SHORT={thaohoi:'Tháo hồi',loi:'Lỗi/sai CL',laptrinh:'Lập trình lại',thua:'Thừa',dptt:'Về DPTT'};
+const LOAI={thaohoi:'Tháo hồi từ lưới',loi:'Lỗi / sai chủng loại',laptrinh:'Lập trình lại',kiemdinh:'Kiểm định lại',thua:'Thừa, không dùng hết',dptt:'Về dự phòng tập trung'};
+const LOAI_SHORT={thaohoi:'Tháo hồi',loi:'Lỗi/sai CL',laptrinh:'Lập trình lại',kiemdinh:'Kiểm định lại',thua:'Thừa',dptt:'Về DPTT'};
 const mkey=ma=>{const g=String(ma||'').trim().split('.');return g.slice(0,4).join('.')+'|'+(g.length>4?g[g.length-1]:'')};
 function loaiCode(v){const n=norm(v); if(!n) return ''; if(LOAI[n]) return n;
   if(n.includes('du phong')||n==='dptt'||n.includes('dptt')) return 'dptt';
   if(n.includes('thao')||n.includes('hoi luoi')) return 'thaohoi';
-  if(n.includes('lap trinh')||n.includes('cai dat')||n.includes('kiem dinh')||n.includes('khung gio')) return 'laptrinh';
+  if(n.includes('kiem dinh')) return 'kiemdinh';
+  if(n.includes('lap trinh')||n.includes('cai dat')||n.includes('khung gio')) return 'laptrinh';
   if(n.includes('thua')||n.includes('khong dung')) return 'thua';
   if(n.includes('loi')||n.includes('sai')||n.includes('hong')) return 'loi';
   return null;}
@@ -1103,7 +1104,7 @@ function dropCache(id){delete SC.dot[id];SC.allDot=null}
 function thieuCT(p){const c=S.kh[p.kh]||{};const t=[];
   if(!p.pxk) t.push('Phiếu XK PCCL'); if(!p.pnk) t.push('Phiếu NK/BB TNĐL');
   const ns=seriN(p); if(!ns) t.push('Danh sách seri'); else if(ns!==Number(p.sl)) t.push('Seri '+ns+'/'+p.sl);
-  if(c.loai==='laptrinh'){const nl=Number(p.nlSl)||0; if(nl<Number(p.sl)) t.push('Chưa nhận lại '+fmt(Number(p.sl)-nl)+' cái');}
+  if(c.loai==='laptrinh'||c.loai==='kiemdinh'){const nl=Number(p.nlSl)||0; if(nl<Number(p.sl)) t.push('Chưa nhận lại '+fmt(Number(p.sl)-nl)+' cái');}
   return t;}
 
 /* ---- seri ---- */
@@ -1163,7 +1164,7 @@ function renderTraSelects(){
 }
 function renderTraAvail(){
   const c=S.kh[$('tKh').value];
-  $('tNlBox').hidden=!(c&&c.loai==='laptrinh');
+  $('tNlBox').hidden=!(c&&(c.loai==='laptrinh'||c.loai==='kiemdinh'));
   if(!c){['taG','taN','taC'].forEach(k=>$(k).textContent='–');$('tDotList').innerHTML='<p class="hint">Chọn một dòng phải trả.</p>';return}
   const n=traOf(c.id),g=Number(c.sl)||0; $('taG').textContent=fmt(g);$('taN').textContent=fmt(n);$('taC').textContent=fmt(g-n);
   const ds=dtOf(c.id);
@@ -1194,8 +1195,8 @@ $('fTra').addEventListener('submit',async ev=>{
     const cross=r.list.filter(x=>all.has(x)&&all.get(x)!==S.editT);
     if(cross.length){S.forceT=true;return showMsg('tMsg','err',cross.length+' seri đã có ở đợt trả khác (VD: '+cross.slice(0,5).join(', ')+'). Kiểm tra lại. Nếu đúng là trả lần hai (VD gửi lập trình lần nữa), bấm Lưu thêm lần nữa để xác nhận.')}}
   let nl={nlNgay:$('tNlNgay').value||'',nlSl:null,nlSo:$('tNlSo').value.trim()};
-  if(c.loai==='laptrinh'&&$('tNlSl').value!==''){const x=parseInt($('tNlSl').value,10);if(!(x>=0)||x>sl)return showMsg('tMsg','err','SL nhận lại phải từ 0 đến '+fmt(sl)+'.');nl.nlSl=x;if(x>0&&!nl.nlNgay)return showMsg('tMsg','err','Nhập ngày nhận lại.')}
-  const body={kh:c.id,tb:c.tb,ngay,sl,pxk,pnk,tinhTrang:$('tTt').value,goc:$('tGoc').value.trim(),nguoi:$('tNguoi').value.trim(),ghi:$('tGhi').value.trim(),nSeri:r.n,...(c.loai==='laptrinh'?nl:{})};
+  if((c.loai==='laptrinh'||c.loai==='kiemdinh')&&$('tNlSl').value!==''){const x=parseInt($('tNlSl').value,10);if(!(x>=0)||x>sl)return showMsg('tMsg','err','SL nhận lại phải từ 0 đến '+fmt(sl)+'.');nl.nlSl=x;if(x>0&&!nl.nlNgay)return showMsg('tMsg','err','Nhập ngày nhận lại.')}
+  const body={kh:c.id,tb:c.tb,ngay,sl,pxk,pnk,tinhTrang:$('tTt').value,goc:$('tGoc').value.trim(),nguoi:$('tNguoi').value.trim(),ghi:$('tGhi').value.trim(),nSeri:r.n,...((c.loai==='laptrinh'||c.loai==='kiemdinh')?nl:{})};
   lsSet('ct_nguoi',body.nguoi);
   $('tBtnSave').disabled=true;
   try{
@@ -1218,10 +1219,10 @@ async function editTra(id){const p=S.dt[id];if(!p)return;S.editT=id;S.forceT=fal
 
 /* ---- render ---- */
 function canDoi(){
-  const m={}; const row=k=>m[k]=m[k]||{nhan:0,loi:0,thua:0,dp:0,lt:0,nl:0,th:0};
+  const m={}; const row=k=>m[k]=m[k]||{nhan:0,loi:0,thua:0,dp:0,lt:0,nl:0,th:0,kd:0,nlkd:0};
   Object.values(S.cp).forEach(c=>{row(grpOf(c)).nhan+=Math.min(nhanOf(c.id),Number(c.sl)||0)});
   Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(!c)return;const x=row(grpOf(c));const sl=Number(p.sl)||0;
-    if(c.loai==='loi')x.loi+=sl;else if(c.loai==='thua')x.thua+=sl;else if(c.loai==='dptt')x.dp+=sl;else if(c.loai==='thaohoi')x.th+=sl;else if(c.loai==='laptrinh'){x.lt+=sl;x.nl+=Math.min(Number(p.nlSl)||0,sl)}});
+    if(c.loai==='loi')x.loi+=sl;else if(c.loai==='thua')x.thua+=sl;else if(c.loai==='dptt')x.dp+=sl;else if(c.loai==='thaohoi')x.th+=sl;else if(c.loai==='laptrinh'){x.lt+=sl;x.nl+=Math.min(Number(p.nlSl)||0,sl)}else if(c.loai==='kiemdinh'){x.kd+=sl;x.nlkd+=Math.min(Number(p.nlSl)||0,sl)}});
   return Object.entries(m).sort(grpSort);
 }
 function renderTra(){
@@ -1231,7 +1232,7 @@ function renderTra(){
   // shortcuts
   const warn=vts.filter(t=>{const x=vtStats(t.id);const k=statusT(x.g,x.n,t.han).k;return k==='late'||k==='soon'});
   const ctList=Object.values(S.dt).map(p=>({p,t:thieuCT(p)})).filter(x=>x.t.length);
-  let dang=0; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(c&&c.loai==='laptrinh')dang+=Math.max((Number(p.sl)||0)-(Number(p.nlSl)||0),0)});
+  let dang=0; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(c&&(c.loai==='laptrinh'||c.loai==='kiemdinh'))dang+=Math.max((Number(p.sl)||0)-(Number(p.nlSl)||0),0)});
   let h='';
   if(S.canWrite) h+='<a class="sc" href="#tra-ghi"><span class="ic">'+IC.tr+'</span><span><div class="t">Ghi đợt chuyển trả</div><div class="d">Ngày, số lượng, số phiếu, danh sách seri</div></span><span class="go">›</span></a>';
   if(!ready) h+='<a class="sc" href="#tra-chi-tiet"><span class="ic">'+IC.nk+'</span><span><div class="t">Đang tải hạn trả…</div><div class="d">Cảnh báo hiện khi có văn bản sắp hoặc quá hạn</div></span><span class="go">›</span></a>';
@@ -1249,18 +1250,18 @@ function renderTra(){
     return '<tr><td>'+dmy(p.ngay)+'</td><td class="code">'+esc(v?v.so:'?')+'</td><td class="code">'+esc(khLabel(c))+'</td><td class="n">'+fmt(p.sl)+'</td><td><div class="chips">'+t.map(x=>'<span class="chip warnchip">'+esc(x)+'</span>').join('')+'</div></td><td>'+(S.canWrite?'<button class="small" data-tedit="'+esc(p.id)+'">Bổ sung</button>':'')+'</td></tr>'}).join('')
     :'<tr><td colspan="6" class="empty">Không có đợt trả nào thiếu chứng từ.</td></tr>';
   // cân đối
-  const cd=canDoi(); const T={nhan:0,loi:0,thua:0,dp:0,lt:0,nl:0,th:0};
-  $('canDoiBody').innerHTML=cd.length?cd.map(([k,x])=>{Object.keys(T).forEach(f=>T[f]+=x[f]);const dg=x.lt-x.nl;const giu=x.nhan-x.loi-x.thua-x.dp-dg;
-    return '<tr><td>'+esc(k)+'</td><td class="n">'+fmt(x.nhan)+'</td><td class="n">'+fmt(x.loi)+'</td><td class="n">'+fmt(x.thua)+'</td><td class="n">'+fmt(x.dp)+'</td><td class="n">'+fmt(x.lt)+'</td><td class="n">'+fmt(x.nl)+'</td><td class="n'+(dg>0?' rest-pos':'')+'">'+fmt(dg)+'</td><td class="n"><b>'+fmt(giu)+'</b></td><td class="n">'+fmt(x.th)+'</td></tr>'}).join('')+
-    '<tr class="sum"><td>Tổng cộng</td><td class="n">'+fmt(T.nhan)+'</td><td class="n">'+fmt(T.loi)+'</td><td class="n">'+fmt(T.thua)+'</td><td class="n">'+fmt(T.dp)+'</td><td class="n">'+fmt(T.lt)+'</td><td class="n">'+fmt(T.nl)+'</td><td class="n">'+fmt(T.lt-T.nl)+'</td><td class="n">'+fmt(T.nhan-T.loi-T.thua-T.dp-(T.lt-T.nl))+'</td><td class="n">'+fmt(T.th)+'</td></tr>':'<tr><td colspan="10" class="empty">Chưa có số liệu.</td></tr>';
+  const cd=canDoi(); const T={nhan:0,loi:0,thua:0,dp:0,lt:0,nl:0,th:0,kd:0,nlkd:0};
+  $('canDoiBody').innerHTML=cd.length?cd.map(([k,x])=>{Object.keys(T).forEach(f=>T[f]+=x[f]);const dg=x.lt-x.nl;const dgKd=x.kd-x.nlkd;const giu=x.nhan-x.loi-x.thua-x.dp-dg-dgKd;
+    return '<tr><td>'+esc(k)+'</td><td class="n">'+fmt(x.nhan)+'</td><td class="n">'+fmt(x.loi)+'</td><td class="n">'+fmt(x.thua)+'</td><td class="n">'+fmt(x.dp)+'</td><td class="n">'+fmt(x.lt)+'</td><td class="n">'+fmt(x.nl)+'</td><td class="n'+(dg>0?' rest-pos':'')+'">'+fmt(dg)+'</td><td class="n">'+fmt(x.kd)+'</td><td class="n">'+fmt(x.nlkd)+'</td><td class="n'+(dgKd>0?' rest-pos':'')+'">'+fmt(dgKd)+'</td><td class="n"><b>'+fmt(giu)+'</b></td><td class="n">'+fmt(x.th)+'</td></tr>'}).join('')+
+    '<tr class="sum"><td>Tổng cộng</td><td class="n">'+fmt(T.nhan)+'</td><td class="n">'+fmt(T.loi)+'</td><td class="n">'+fmt(T.thua)+'</td><td class="n">'+fmt(T.dp)+'</td><td class="n">'+fmt(T.lt)+'</td><td class="n">'+fmt(T.nl)+'</td><td class="n">'+fmt(T.lt-T.nl)+'</td><td class="n">'+fmt(T.kd)+'</td><td class="n">'+fmt(T.nlkd)+'</td><td class="n">'+fmt(T.kd-T.nlkd)+'</td><td class="n">'+fmt(T.nhan-T.loi-T.thua-T.dp-(T.lt-T.nl)-(T.kd-T.nlkd))+'</td><td class="n">'+fmt(T.th)+'</td></tr>':'<tr><td colspan="13" class="empty">Chưa có số liệu.</td></tr>';
   // nhóm
   const nm={}; Object.values(S.kh).forEach(c=>{const k=grpOf(c);nm[k]=nm[k]||{g:0,n:0};nm[k].g+=Number(c.sl)||0;nm[k].n+=Math.min(traOf(c.id),Number(c.sl)||0)});
   const ne=Object.entries(nm).sort(grpSort); let tg=0,tn=0;
   $('trNhomBody').innerHTML=ne.length?ne.map(([k,v])=>{tg+=v.g;tn+=v.n;const w=v.g?v.n*100/v.g:0;return '<tr><td>'+esc(k)+'</td><td class="n">'+fmt(v.g)+'</td><td class="n">'+fmt(v.n)+'</td><td class="n '+(v.g-v.n>0?'rest-pos':'rest-zero')+'">'+fmt(v.g-v.n)+'</td><td><div class="mini"><div class="bar"><i style="width:'+w+'%"></i></div><span class="hint">'+pct(v.n,v.g).toLocaleString('vi-VN')+'%</span></div></td></tr>'}).join('')+'<tr class="sum"><td>Tổng cộng</td><td class="n">'+fmt(tg)+'</td><td class="n">'+fmt(tn)+'</td><td class="n">'+fmt(tg-tn)+'</td><td></td></tr>':'<tr><td colspan="5" class="empty">Chưa có dòng phải trả.</td></tr>';
   // tháng
-  const th={}; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(!c||!p.ngay)return;const k=p.ngay.slice(0,7);th[k]=th[k]||{thaohoi:0,loi:0,laptrinh:0,thua:0,dptt:0,n:0};th[k][c.loai]=(th[k][c.loai]||0)+(Number(p.sl)||0);th[k].n++});
+  const th={}; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(!c||!p.ngay)return;const k=p.ngay.slice(0,7);th[k]=th[k]||{thaohoi:0,loi:0,laptrinh:0,kiemdinh:0,thua:0,dptt:0,n:0};th[k][c.loai]=(th[k][c.loai]||0)+(Number(p.sl)||0);th[k].n++});
   const tk=Object.keys(th).sort().reverse();
-  $('trThangBody').innerHTML=tk.length?tk.map(k=>{const x=th[k];const s=x.thaohoi+x.loi+x.laptrinh+x.thua+x.dptt;const [y,mo]=k.split('-');return '<tr><td>Tháng '+mo+'/'+y+'</td><td class="n">'+fmt(x.thaohoi)+'</td><td class="n">'+fmt(x.loi)+'</td><td class="n">'+fmt(x.laptrinh)+'</td><td class="n">'+fmt(x.thua)+'</td><td class="n">'+fmt(x.dptt)+'</td><td class="n"><b>'+fmt(s)+'</b></td><td class="n">'+x.n+'</td></tr>'}).join(''):'<tr><td colspan="8" class="empty">Chưa có đợt trả nào.</td></tr>';
+  $('trThangBody').innerHTML=tk.length?tk.map(k=>{const x=th[k];const s=x.thaohoi+x.loi+x.laptrinh+x.kiemdinh+x.thua+x.dptt;const [y,mo]=k.split('-');return '<tr><td>Tháng '+mo+'/'+y+'</td><td class="n">'+fmt(x.thaohoi)+'</td><td class="n">'+fmt(x.loi)+'</td><td class="n">'+fmt(x.laptrinh)+'</td><td class="n">'+fmt(x.kiemdinh)+'</td><td class="n">'+fmt(x.thua)+'</td><td class="n">'+fmt(x.dptt)+'</td><td class="n"><b>'+fmt(s)+'</b></td><td class="n">'+x.n+'</td></tr>'}).join(''):'<tr><td colspan="9" class="empty">Chưa có đợt trả nào.</td></tr>';
   renderTraCp(); renderTraLog(); renderTraDm(); renderTraSelects();
 }
 function renderTraCp(){
@@ -1279,7 +1280,7 @@ function renderTraLog(){
   const list=Object.values(S.dt).sort((a,b)=>(b.ngay||'').localeCompare(a.ngay||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   $('tLogBody').innerHTML=list.length?list.map(p=>{const c=S.kh[p.kh];const v=c&&S.vt[c.tb];const ns=seriN(p);
     const seri=ns?'<details class="lines" data-dot="'+esc(p.id)+'"><summary>'+fmt(ns)+' seri'+(ns!==Number(p.sl)?' (lệch)':'')+'</summary><div class="serilist">Đang tải…</div></details>':'<span class="rest-pos">Chưa có</span>';
-    const nl=c&&c.loai==='laptrinh'?(fmt(p.nlSl||0)+'/'+fmt(p.sl)+(p.nlNgay?' · '+dm(p.nlNgay):'')+(p.nlSo?'<div class="det">'+esc(p.nlSo)+'</div>':'')):'';
+    const nl=c&&(c.loai==='laptrinh'||c.loai==='kiemdinh')?(fmt(p.nlSl||0)+'/'+fmt(p.sl)+(p.nlNgay?' · '+dm(p.nlNgay):'')+(p.nlSo?'<div class="det">'+esc(p.nlSo)+'</div>':'')):'';
     const act=S.confirmDelT===p.id?'<button class="small danger" data-tdel2="'+esc(p.id)+'">Xác nhận xóa</button> <button class="small" data-tdel0="1">Thôi</button>':'<button class="small" data-tedit="'+esc(p.id)+'">Sửa</button> <button class="small danger" data-tdel1="'+esc(p.id)+'">Xóa</button>';
     return '<tr><td>'+dmy(p.ngay)+'</td><td class="code">'+esc(v?v.so:'?')+'</td><td class="code">'+esc(khLabel(c))+(p.goc?'<div class="det">Gốc: '+esc(p.goc)+'</div>':'')+'</td><td class="n">'+fmt(p.sl)+'</td><td>'+esc(p.pxk||'')+'</td><td>'+esc(p.pnk||'')+'</td><td>'+esc(p.tinhTrang||'')+'</td><td>'+seri+'</td><td>'+nl+'</td><td>'+esc(p.nguoi||'')+(p.by&&S.names[p.by]?'<div class="det">Ghi: '+esc(S.names[p.by])+'</div>':'')+'</td><td style="white-space:nowrap">'+(S.canWrite?act:'')+'</td></tr>'}).join('')
     :'<tr><td colspan="11" class="empty">Chưa có đợt trả nào. Vào Ghi đợt trả để ghi đợt đầu tiên.</td></tr>';
@@ -1315,8 +1316,8 @@ function reportTra(){
   const d=new Date(); let s='BÁO CÁO CHUYỂN TRẢ CÔNG TƠ VỀ CTY TNĐL – PCCL\n(cập nhật '+pad(d.getHours())+'h'+pad(d.getMinutes())+' ngày '+dmy(todayISO())+')\n\n';
   s+='Tổng phải trả: '+fmt(G)+' cái; đã trả: '+fmt(N)+' cái ('+pct(N,G).toLocaleString('vi-VN')+'%); còn phải trả: '+fmt(G-N)+' cái.\n\n1. Theo văn bản:\n';
   vts.forEach(t=>{const x=vtStats(t.id);s+='- '+t.so+' ngày '+dm(t.ngay)+' (hạn '+dm(t.han)+'): phải trả '+fmt(x.g)+', đã trả '+fmt(x.n)+', còn '+fmt(x.con)+' – '+statusT(x.g,x.n,t.han).t+'.\n'});
-  const L={thaohoi:0,loi:0,laptrinh:0,thua:0,dptt:0}; let nl=0; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(!c)return;L[c.loai]+=Number(p.sl)||0;if(c.loai==='laptrinh')nl+=Math.min(Number(p.nlSl)||0,Number(p.sl)||0)});
-  s+='\n2. Đã trả theo lý do: tháo hồi '+fmt(L.thaohoi)+'; lỗi/sai chủng loại '+fmt(L.loi)+'; lập trình lại '+fmt(L.laptrinh)+' (đã nhận lại '+fmt(nl)+', còn ở TNĐL '+fmt(L.laptrinh-nl)+'); thừa '+fmt(L.thua)+'; về dự phòng tập trung '+fmt(L.dptt)+'.\n';
+  const L={thaohoi:0,loi:0,laptrinh:0,kiemdinh:0,thua:0,dptt:0}; let nl=0,nlkd=0; Object.values(S.dt).forEach(p=>{const c=S.kh[p.kh];if(!c)return;L[c.loai]+=Number(p.sl)||0;if(c.loai==='laptrinh')nl+=Math.min(Number(p.nlSl)||0,Number(p.sl)||0);if(c.loai==='kiemdinh')nlkd+=Math.min(Number(p.nlSl)||0,Number(p.sl)||0)});
+  s+='\n2. Đã trả theo lý do: tháo hồi '+fmt(L.thaohoi)+'; lỗi/sai chủng loại '+fmt(L.loi)+'; lập trình lại '+fmt(L.laptrinh)+' (đã nhận lại '+fmt(nl)+', còn ở TNĐL '+fmt(L.laptrinh-nl)+'); kiểm định lại '+fmt(L.kiemdinh)+' (đã nhận lại '+fmt(nlkd)+', còn ở TNĐL '+fmt(L.kiemdinh-nlkd)+'); thừa '+fmt(L.thua)+'; về dự phòng tập trung '+fmt(L.dptt)+'.\n';
   const ct=Object.values(S.dt).filter(p=>thieuCT(p).length).length; if(ct) s+='\n3. Còn '+ct+' đợt trả chưa đủ chứng từ, đang đôn đốc bổ sung.\n';
   return s;
 }
@@ -1561,10 +1562,10 @@ const IMP_TN=makeImporter({p:'imp',cols:COLS_TN,T:()=>S.tb,L:()=>S.cp,done:nhanO
 const IMP_TR=makeImporter({p:'timp',cols:COLS_TR,T:()=>S.vt,L:()=>S.kh,done:traOf,tcol:'vbtra',lcol:'kehoachtra',tsorted:vtSorted,lof:khOf,
   w:{tb:'văn bản',line:'dòng phải trả',sl:'SL phải trả',slCol:'SL phải trả',done:'đã trả'},tplName:'Mau_Import_ChuyenTraCongTo_PCCL.xlsx',
   xcol:{h:'Lý do',show:r=>LOAI_SHORT[r.x&&r.x.loai]||''},
-  extra:(r,e)=>{const c=loaiCode(r.loai);if(c===null){e.push('Lý do "'+str(r.loai)+'" không nhận ra. Ghi: Tháo hồi / Lỗi / Lập trình lại / Thừa / Về DPTT');return {}}if(!c){e.push('Thiếu lý do trả');return {}}return {loai:c,...(r.nguon?{nguon:r.nguon}:{})}},
+  extra:(r,e)=>{const c=loaiCode(r.loai);if(c===null){e.push('Lý do "'+str(r.loai)+'" không nhận ra. Ghi: Tháo hồi / Lỗi / Lập trình lại / Kiểm định lại / Thừa / Về DPTT');return {}}if(!c){e.push('Thiếu lý do trả');return {}}return {loai:c,...(r.nguon?{nguon:r.nguon}:{})}},
   diff:(old,x,ch)=>{if(x.loai&&old.loai!==x.loai)ch.push('Lý do '+(LOAI_SHORT[old.loai]||'–')+' → '+LOAI_SHORT[x.loai])},
   exRows:()=>[['6400/EVNHCMC-KH','10/11/2026','20/11/2026','VÍ DỤ: thu hồi công tơ lỗi và công tơ thay khung giờ',200,1,'8.75.50.128.00.00.CXA','Điện kế điện tử 3 pha nhiều giá trực tiếp GELEX','Lỗi','8128/26','3 pha nhiều giá GELEX',12],['6400/EVNHCMC-KH','10/11/2026','20/11/2026','','',2,'8.75.60.900.00.00.000','Công tơ điện tử 1 pha một giá GELEX','Lập trình lại','1291/2026','1 pha 1 giá GELEX',150],['6400/EVNHCMC-KH','10/11/2026','20/11/2026','','',3,'8.75.60.100.00.00.000','Công tơ cơ 1 pha tháo hồi','Tháo hồi','','',38]],
-  guide:['HƯỚNG DẪN NHẬP FILE VĂN BẢN GIAO CHUYỂN TRẢ CÔNG TƠ','','1. Điền dữ liệu vào sheet Nhap_lieu, giữ nguyên dòng tiêu đề. Sheet Vi_du là số liệu minh họa, trang không đọc sheet này.','2. Mỗi dòng là một mã VT theo một lý do trả mà PCCL phải trả về TNĐL.','3. Một file có thể chứa nhiều văn bản: ghi Số văn bản và Ngày VB ở mọi dòng.','4. Lý do trả ghi một trong: Tháo hồi / Lỗi / Lập trình lại / Thừa.','5. Ngày ghi dạng dd/mm/yyyy. Hạn trả bỏ trống thì trang lấy ngày VB + 10 ngày.','6. Trên trang: Chuyển trả > Danh mục > Nhập từ file Excel > chọn file > kiểm tra bảng xem trước > Ghi vào danh mục.']});
+  guide:['HƯỚNG DẪN NHẬP FILE VĂN BẢN GIAO CHUYỂN TRẢ CÔNG TƠ','','1. Điền dữ liệu vào sheet Nhap_lieu, giữ nguyên dòng tiêu đề. Sheet Vi_du là số liệu minh họa, trang không đọc sheet này.','2. Mỗi dòng là một mã VT theo một lý do trả mà PCCL phải trả về TNĐL.','3. Một file có thể chứa nhiều văn bản: ghi Số văn bản và Ngày VB ở mọi dòng.','4. Lý do trả ghi một trong: Tháo hồi / Lỗi / Lập trình lại / Kiểm định lại / Thừa.','5. Ngày ghi dạng dd/mm/yyyy. Hạn trả bỏ trống thì trang lấy ngày VB + 10 ngày.','6. Trên trang: Chuyển trả > Danh mục > Nhập từ file Excel > chọn file > kiểm tra bảng xem trước > Ghi vào danh mục.']});
 
 /* ---- ĐỌC PDF THÔNG BÁO ĐIỀU ĐỘNG (hàm thuần, không phụ thuộc DOM) ---- */
 function pdfParseTB(pages,todayIso,annoTexts){
@@ -1638,6 +1639,64 @@ function pdfParseTB(pages,todayIso,annoTexts){
   return out;
 }
 
+/* ---- ĐỌC PDF CÔNG VĂN PCCL GỬI CHUYỂN TRẢ ĐIỆN KẾ VỀ TNĐL ĐỂ KIỂM ĐỊNH LẠI ---- */
+function pdfIsCV(pages){
+  const t=pages.map(p=>p.items.filter(i=>!i.rot).map(i=>i.s).join(' ')).join(' ').replace(/\s+/g,'');
+  return /Kínhgửi:?CôngtyThínghiệmĐiệnlực/i.test(t)&&/Danhpháp/i.test(t)&&/MCL/i.test(t)&&!/TB-EVNHCMC/i.test(t);
+}
+function pdfParseCV(pages,todayIso,annoTexts){
+  const NUM=/^\d{1,3}(\.\d{3})+$|^\d+$/;
+  const DP4=/^\d\.\d{2}\.\d{2}\.\d{3}\.?$/;
+  const qn=s=>Number(String(s).replace(/\./g,''));
+  const P=pages.map(p=>p.items.filter(i=>String(i.s).trim()&&(!i.rot||/^(PC[A-ZĐ]{1,4}|LĐCT)$/.test(String(i.s).normalize('NFC').trim()))).map(i=>({...i,s:String(i.s).normalize('NFC').trim()})));
+  const text=(annoTexts||[]).filter(Boolean).join('\n')+'\n'+P.map(it=>it.map(i=>i.s).join(' ')).join('\n');
+  const sq=text.replace(/\s+/g,'');
+  const out={so:'',ngay:'',han:'',phuLuc:'',canCu:'',tong:null,matHang:null,flow:'tra',loai:'kiemdinh',isCV:true,rows:[],warn:[]};
+  const pad=n=>String(n).padStart(2,'0');
+
+  let m=sq.match(/(\d{2,6}\/PCCL-[A-ZĐ]+)/i); if(m) out.so=m[1].toUpperCase();
+  m=sq.match(/ngày(\d{1,2})tháng(\d{1,2})năm(\d{4})/i); if(m) out.ngay=m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+  m=sq.match(/Thờigiangiaonhận:?ngày(\d{1,2})\/(\d{1,2})\/(\d{4})/i); if(m) out.han=m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+
+  let tongVal=null;
+  P.forEach(it=>{const ti=it.find(i=>i.s==='Tổng'); if(ti){const cand=it.filter(i=>i!==ti&&NUM.test(i.s)&&Math.abs(i.y-ti.y)<4&&i.x>ti.x); if(cand.length) tongVal=qn(cand[0].s)}});
+  out.tong=tongVal;
+
+  let colTenX=null,colDpX=null,colMclX=null,colSlX=null;
+  P.forEach(it=>{const f=re=>it.find(i=>re.test(i.s));
+    const h1=f(/^Tên/); if(h1&&colTenX==null) colTenX=h1.x;
+    const h2=f(/^Danh pháp$/); if(h2&&colDpX==null) colDpX=h2.x;
+    const h3=f(/^MCL$/); if(h3&&colMclX==null) colMclX=h3.x;
+    const h4=f(/^Số$/); if(h4&&colSlX==null) colSlX=h4.x;
+  });
+
+  P.forEach((it,pi)=>{
+    const anchors=it.filter(i=>DP4.test(i.s)).sort((a,b)=>b.y-a.y);
+    const stts=it.filter(i=>/^\d{1,2}$/.test(i.s)&&i.x<(colTenX||188)+5).sort((a,b)=>b.y-a.y);
+    const paired=anchors.map(a=>{const stt=stts.filter(s=>Math.abs(s.y-a.y)<20).sort((p,q)=>Math.abs(p.y-a.y)-Math.abs(q.y-a.y))[0]; return {a,stt}});
+    const tongY=(it.find(i=>i.s==='Tổng')||{}).y;
+    paired.forEach(({a,stt},k)=>{
+      const prevP=paired[k-1],nextP=paired[k+1];
+      const midOf=(p,q)=>{const midA=(p.a.y+q.a.y)/2; const midS=(p.stt&&q.stt)?(p.stt.y+q.stt.y)/2:midA; return [midA,midS]};
+      const EPS=1.5;
+      const top=prevP?Math.min(...midOf(prevP,{a,stt}))+EPS:a.y+30;
+      const bot=nextP?Math.max(...midOf({a,stt},nextP))-EPS:(tongY!=null&&tongY<a.y?tongY+2:-1e9);
+      const band=it.filter(i=>i.y<=top&&i.y>bot);
+      const ten=band.filter(i=>i!==a&&i!==stt&&i.x<(colDpX||382)-5).sort((p,q)=>(q.y-p.y)>3?1:(p.y-q.y)>3?-1:p.x-q.x).map(i=>i.s).join(' ').replace(/\s{2,}/g,' ').trim();
+      const mcl=band.find(i=>colMclX!=null&&colSlX!=null&&i.x>=colMclX-5&&i.x<colSlX-5&&!NUM.test(i.s));
+      const slCands=band.filter(i=>NUM.test(i.s)&&colSlX!=null&&i.x>=colSlX-10);
+      const sl=slCands.length?qn(slCands.sort((p,q)=>Math.abs(p.x-((colSlX||0)+40))-Math.abs(q.x-((colSlX||0)+40)))[0].s):null;
+      out.rows.push({stt:stt?+stt.s:out.rows.length+1,ma:a.s.replace(/\.$/,'')+'.00.00.'+(mcl?mcl.s:'000'),ten,lo:'',sl,page:pi+1});
+    });
+  });
+  out.sum=out.rows.reduce((a,r)=>a+(r.sl||0),0);
+  if(out.tong!=null&&out.sum!==out.tong) out.warn.push('Tổng đọc được '+out.sum+' khác tổng ghi trong văn bản '+out.tong+'.');
+  if(!out.so) out.warn.push('Không đọc được Số văn bản (bản PDF có thể để trống ô Số), nhập tay trước khi ghi.');
+  if(!out.ngay) out.warn.push('Không đọc được Ngày văn bản (bản PDF có thể để trống ngày ký), nhập tay trước khi ghi.');
+  out.rows.filter(r=>r.sl==null).forEach(r=>out.warn.push('STT '+r.stt+' ('+r.ma+') chưa đọc được số lượng.'));
+  return out;
+}
+
 /* ---- NHẬP THÔNG BÁO ĐIỀU ĐỘNG TỪ PDF ---- */
 const PDFQ=[]; let pdfSeq=0;
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('script'));document.head.appendChild(s)})}
@@ -1652,7 +1711,7 @@ async function pdfExtract(file){
     if(p<=2){try{const ol=await pg.getOperatorList({annotationMode:lib.AnnotationMode.ENABLE});const O=lib.OPS;let inA=false,buf='';
       ol.fnArray.forEach((fn,i)=>{const a=ol.argsArray[i];if(fn===O.beginAnnotation){inA=true;buf=''}else if(fn===O.endAnnotation){inA=false;if(buf.trim())anno.push(buf.trim())}
         else if(inA&&(fn===O.showText||fn===O.showSpacedText)){(a[0]||[]).forEach(g=>{if(typeof g==='number'){if(g<-200)buf+=' '}else if(g&&g.unicode!=null)buf+=g.unicode});buf+=' '}})}catch(e){}}}
-  return pdfParseTB(pages,todayISO(),anno);
+  return pdfIsCV(pages)?pdfParseCV(pages,todayISO(),anno):pdfParseTB(pages,todayISO(),anno);
 }
 const FLOWN={tra:'Chuyển trả (PCCL → TNĐL)',tn:'Tiếp nhận (TNĐL → PCCL)'};
 function pdfRender(){
@@ -1676,15 +1735,16 @@ async function pdfLoad(files,p){hideMsg(p+'Msg');const fs=[...files||[]].filter(
   for(const f of fs){try{if(f.size>20*1024*1024)throw new Error('big');const r=await pdfExtract(f);
       if(!r.rows.length){bad.push(f.name+' (không thấy bảng phụ lục có mã VT)');continue}
       const flow=r.flow==='tn1'?'tn':r.flow;
-      PDFQ.push({id:'q'+(++pdfSeq),file:f.name,r,flow,so:r.so,ngay:r.ngay,han:r.han,loai:'dptt'});ok++}
+      PDFQ.push({id:'q'+(++pdfSeq),file:f.name,r,flow,so:r.so,ngay:r.ngay,han:r.han,loai:r.loai||'dptt'});ok++}
     catch(e){bad.push(f.name+(e&&e.message==='script'?' (chưa tải được bộ đọc PDF, kiểm tra mạng)':e&&e.message==='big'?' (lớn hơn 20 MB)':' (không đọc được, có thể là bản scan ảnh)'))}}
   if(bad.length) showMsg(p+'Msg','err','Chưa đọc được: '+bad.join('; ')); else showMsg(p+'Msg','ok','Đã đọc '+ok+' thông báo. Kiểm tra số, ngày, hạn rồi bấm Kiểm tra và ghi.');
   pdfRender();
 }
 function pdfGo(q){
-  const r=q.r; const nd=q.flow==='tra'?('Điều động TBĐĐ PCCL về TNĐL'+(r.phuLuc?' · PL '+r.phuLuc:'')+' · '+r.rows.length+' mặt hàng, '+fmt(r.sum)+' cái'+(r.canCu?' · căn cứ '+r.canCu:'')):('Điều động công tơ từ TNĐL · PCCL nhận '+fmt(r.sum)+' cái'+(r.phuLuc?' · PL '+r.phuLuc:''));
+  const r=q.r; const nd=r.isCV?('Chuyển trả điện kế về TNĐL để kiểm định lại'+' · '+r.rows.length+' chủng loại, '+fmt(r.sum)+' cái'):
+    (q.flow==='tra'?('Điều động TBĐĐ PCCL về TNĐL'+(r.phuLuc?' · PL '+r.phuLuc:'')+' · '+r.rows.length+' mặt hàng, '+fmt(r.sum)+' cái'+(r.canCu?' · căn cứ '+r.canCu:'')):('Điều động công tơ từ TNĐL · PCCL nhận '+fmt(r.sum)+' cái'+(r.phuLuc?' · PL '+r.phuLuc:'')));
   const rows=r.rows.map((x,k)=>({so:q.so,ngay:q.ngay,han:q.han,nd:k===0?nd:'',tong:k===0?(q.flow==='tra'?r.tong:null):'',stt:x.stt,ma:x.ma,ten:x.ten,lo:x.lo||'',nhom:'',sl:x.sl==null?'':x.sl,
-    ...(q.flow==='tra'?{loai:q.loai,nguon:'TB'}:{})}));
+    ...(q.flow==='tra'?{loai:q.loai,nguon:r.isCV?'CV':'TB'}:{})}));
   const label=q.file+' · '+q.so;
   if(q.flow==='tra'){IMP_TR.loadRows(rows,label);location.hash='tra-danh-muc';setTimeout(()=>$('timpPanel').scrollIntoView({behavior:'smooth'}),80)}
   else{IMP_TN.loadRows(rows,label);location.hash='danh-muc';setTimeout(()=>$('impPanel').scrollIntoView({behavior:'smooth'}),80)}
