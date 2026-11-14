@@ -2208,8 +2208,9 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button[dat
       <div class="sec-head"><h2>Thêm hoặc sửa danh pháp</h2></div>
       <form class="entry" id="dpForm" novalidate style="margin-top:12px">
         <label>Danh pháp<input id="dpCode" placeholder="8.75.60.900" autocomplete="off" required></label>
-        <label>Mã cân đối<select id="dpMcd"></select></label>
+        <label>Mã cân đối<input id="dpMcd" list="dpMcdList" placeholder="VD: MO3 (gõ mã mới nếu chưa có)" autocomplete="off" style="text-transform:uppercase"><datalist id="dpMcdList"></datalist></label>
         <label class="full">Tên VTTB<input id="dpTen" placeholder="Công tơ 1 pha 1 giá Gelex" required></label>
+        <label class="full">Tên nhóm cân đối (chỉ cần khi Mã cân đối ở trên là mã mới)<input id="dpMcdTen" placeholder="Để trống thì lấy theo Tên VTTB"></label>
         <label>Loại<select id="dpLoai">${opt(['1 giá','Nhiều giá'])}</select></label>
         <label>Nhóm<select id="dpNhom">${opt(DP_NHOM)}</select></label>
         <label>Hãng<input id="dpHang" list="dpHangList" placeholder="GELEX"><datalist id="dpHangList">${Object.keys(HANG_DISP).map(h=>'<option value="'+h+'"></option>').join('')}</datalist></label>
@@ -2244,9 +2245,9 @@ function renderDp(){const body=$('dpBody');if(!body)return;const adm=isAdm();
   const M2=mcdList();const by={};Object.values(S.dp||{}).filter(d=>!d.xoa&&d.mcd).forEach(d=>(by[d.mcd]=by[d.mcd]||[]).push(d));
   $('mcdCount').textContent=M2.length+' mã';
   $('mcdBody').innerHTML=M2.length?M2.map(m=>'<tr><td class="n">'+esc(m.stt)+'</td><td class="code">'+esc(m.id)+'</td><td>'+esc(m.ten)+'</td><td>'+((by[m.id]||[]).map(d=>'<span class="chip">'+esc(d.id)+'</span> '+esc(d.ten)).join('<br>')||'<span class="hint">Chưa gắn danh pháp. Khi có mã VT mới thuộc loại này, trang đề xuất gắn.</span>')+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Chưa có mã cân đối.</td></tr>';
-  const sel=$('dpMcd');if(sel&&document.activeElement!==sel){const v=sel.value;sel.innerHTML='<option value="">(chưa có mã cân đối)</option>'+M2.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.id)+' · '+esc(m.ten)+'</option>').join('');sel.value=v}
+  const dl=$('dpMcdList');if(dl)dl.innerHTML=M2.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.id)+' · '+esc(m.ten)+'</option>').join('');
   renderDpImp()}
-function dpFill(d){$('dpCode').value=d.dp||d.id||'';$('dpMcd').value=d.mcd||'';$('dpTen').value=d.ten||'';$('dpLoai').value=d.loai||'1 giá';$('dpNhom').value=d.nhom||'1P1G';$('dpHang').value=d.hang||'';$('dpHuong').value=d.huong||'1 hướng';
+function dpFill(d){$('dpCode').value=d.dp||d.id||'';$('dpMcd').value=d.mcd||'';$('dpMcdTen').value='';$('dpTen').value=d.ten||'';$('dpLoai').value=d.loai||'1 giá';$('dpNhom').value=d.nhom||'1P1G';$('dpHang').value=d.hang||'';$('dpHuong').value=d.huong||'1 hướng';
   $('dpEditPanel').scrollIntoView({behavior:'smooth',block:'start'});$('dpTen').focus()}
 $('dpQ').addEventListener('input',e=>{DPE.q=e.target.value;renderDp()});
 $('v-danh-phap').addEventListener('click',async e=>{const b=e.target.closest('button[data-dpx]');if(!b)return;const k=b.dataset.k;const x=b.dataset.dpx;
@@ -2257,13 +2258,20 @@ $('v-danh-phap').addEventListener('click',async e=>{const b=e.target.closest('bu
   if(x==='del2'){if(!isAdm())return;b.disabled=true;try{await S.db.doc('danhphap/'+k).delete();DPE.conf=null}catch(err){b.disabled=false;b.textContent='Chưa xóa được'}return}
   if(x==='impgo'){if(!isAdm()||!DPE.imp)return;b.disabled=true;let n=0;try{for(const d of DPE.imp.rows.filter(r=>r.st!=='same')){await dpSave(d.dp,d);n++}DPE.imp=null;showMsg('dpMsg','ok','Đã ghi '+n+' danh pháp từ file.')}catch(err){showMsg('dpMsg','err','Mới ghi được '+n+' danh pháp, lỗi: '+(err.message||err))}renderDp();return}
   if(x==='impno'){DPE.imp=null;renderDp();return}});
-$('dpReset').addEventListener('click',()=>{['dpCode','dpTen','dpHang','dpMcd'].forEach(k=>$(k).value='');hideMsg('dpMsg')});
+$('dpReset').addEventListener('click',()=>{['dpCode','dpTen','dpHang','dpMcd','dpMcdTen'].forEach(k=>$(k).value='');hideMsg('dpMsg')});
+$('dpMcd').addEventListener('input',e=>{const p=e.target.selectionStart;e.target.value=e.target.value.toUpperCase();try{e.target.setSelectionRange(p,p)}catch(e){}});
+async function mcdEnsure(id,nhom,hang,tenGoiY){if(!id)return;if(S.mcd&&S.mcd[id])return;const stt=mcdList().reduce((a,m)=>Math.max(a,m.stt||0),0)+1;
+  await S.db.doc('macandoi/'+id).set({ten:tenGoiY,nhom:nhom||'',hang:String(hang||'').toUpperCase(),stt});}
 $('dpForm').addEventListener('submit',async e=>{e.preventDefault();if(!isAdm())return showMsg('dpMsg','err','Chỉ Quản trị được sửa danh pháp.');
-  const k=dpKey($('dpCode').value);const ten=$('dpTen').value.trim();
+  const k=dpKey($('dpCode').value);const ten=$('dpTen').value.trim();const mcd=$('dpMcd').value.trim().toUpperCase();
   if(!dpValid(k))return showMsg('dpMsg','err','Danh pháp phải có dạng 8.75.60.900 (4 nhóm số đầu của mã VT).');
   if(!ten)return showMsg('dpMsg','err','Nhập tên VTTB.');
-  const had=!!dpOf(k);
-  try{await dpSave(k,{mcd:$('dpMcd').value,ten,loai:$('dpLoai').value,nhom:$('dpNhom').value,hang:$('dpHang').value.trim(),huong:$('dpHuong').value});showMsg('dpMsg','ok',(had?'Đã cập nhật ':'Đã thêm ')+'danh pháp '+k+'.');['dpCode','dpTen','dpHang'].forEach(i=>$(i).value='')}
+  const had=!!dpOf(k);const nhom=$('dpNhom').value,hang=$('dpHang').value.trim();
+  const isNewMcd=mcd&&!(S.mcd&&S.mcd[mcd]);
+  try{
+    if(isNewMcd)await mcdEnsure(mcd,nhom,hang,$('dpMcdTen').value.trim()||ten);
+    await dpSave(k,{mcd,ten,loai:$('dpLoai').value,nhom,hang,huong:$('dpHuong').value});
+    showMsg('dpMsg','ok',(had?'Đã cập nhật ':'Đã thêm ')+'danh pháp '+k+(isNewMcd?'. Đã tạo mới mã cân đối '+mcd+'.':'.'));['dpCode','dpTen','dpHang','dpMcd','dpMcdTen'].forEach(i=>$(i).value='')}
   catch(err){showMsg('dpMsg','err','Chưa lưu được ('+(err.message||err)+').')}});
 function dpParse(rows){let hi=-1,map={};
   for(let i=0;i<Math.min(rows.length,15)&&hi<0;i++){const r=rows[i].map(norm);const f=re=>r.findIndex(x=>re.test(x));
