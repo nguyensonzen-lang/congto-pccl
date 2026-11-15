@@ -1647,8 +1647,10 @@ function pdfIsCV(pages){
 function pdfParseCV(pages,todayIso,annoTexts){
   const NUM=/^\d{1,3}(\.\d{3})+$|^\d+$/;
   const DP4=/^\d\.\d{2}\.\d{2}\.\d{3}\.?$/;
+  const DPH=/^\d\.\d{2}\.\d{2}$/, DPT=/^\.?\d{3}\.?$/;
   const qn=s=>Number(String(s).replace(/\./g,''));
-  const P=pages.map(p=>p.items.filter(i=>String(i.s).trim()&&(!i.rot||/^(PC[A-ZĐ]{1,4}|LĐCT)$/.test(String(i.s).normalize('NFC').trim()))).map(i=>({...i,s:String(i.s).normalize('NFC').trim()})));
+  let P=pages.map(p=>p.items.filter(i=>String(i.s).trim()&&(!i.rot||/^(PC[A-ZĐ]{1,4}|LĐCT)$/.test(String(i.s).normalize('NFC').trim()))).map(i=>({...i,s:String(i.s).normalize('NFC').trim()})));
+  P=P.map(it=>{const used=new Set();const mergedHeads=new Set();const merged=[];it.filter(i=>DPH.test(i.s)).forEach(h=>{const t=it.find(i=>i!==h&&!used.has(i)&&DPT.test(i.s)&&Math.abs(i.y-h.y)<2&&i.x>h.x&&i.x-h.x<40);if(t){used.add(t);mergedHeads.add(h);merged.push({...h,s:h.s.replace(/\.$/,'')+(t.s.startsWith('.')?t.s:'.'+t.s)})}});return it.filter(i=>!used.has(i)&&!mergedHeads.has(i)).concat(merged)});
   const text=(annoTexts||[]).filter(Boolean).join('\n')+'\n'+P.map(it=>it.map(i=>i.s).join(' ')).join('\n');
   const sq=text.replace(/\s+/g,'');
   const out={so:'',ngay:'',han:'',phuLuc:'',canCu:'',tong:null,matHang:null,flow:'tra',loai:'kiemdinh',isCV:true,rows:[],warn:[]};
@@ -1665,7 +1667,7 @@ function pdfParseCV(pages,todayIso,annoTexts){
   let colTenX=null,colDpX=null,colMclX=null,colSlX=null;
   P.forEach(it=>{const f=re=>it.find(i=>re.test(i.s));
     const h1=f(/^Tên/); if(h1&&colTenX==null) colTenX=h1.x;
-    const h2=f(/^Danh pháp$/); if(h2&&colDpX==null) colDpX=h2.x;
+    const h2=f(/^Danh( pháp)?$/); if(h2&&colDpX==null) colDpX=h2.x;
     const h3=f(/^MCL$/); if(h3&&colMclX==null) colMclX=h3.x;
     const h4=f(/^Số$/); if(h4&&colSlX==null) colSlX=h4.x;
   });
@@ -1685,7 +1687,7 @@ function pdfParseCV(pages,todayIso,annoTexts){
       const ten=band.filter(i=>i!==a&&i!==stt&&i.x<(colDpX||382)-5).sort((p,q)=>(q.y-p.y)>3?1:(p.y-q.y)>3?-1:p.x-q.x).map(i=>i.s).join(' ').replace(/\s{2,}/g,' ').trim();
       const mcl=band.find(i=>colMclX!=null&&colSlX!=null&&i.x>=colMclX-5&&i.x<colSlX-5&&!NUM.test(i.s));
       const slCands=band.filter(i=>NUM.test(i.s)&&colSlX!=null&&i.x>=colSlX-10);
-      const sl=slCands.length?qn(slCands.sort((p,q)=>Math.abs(p.x-((colSlX||0)+40))-Math.abs(q.x-((colSlX||0)+40)))[0].s):null;
+      const sl=slCands.length?qn(slCands.sort((p,q)=>{const dy=Math.abs(p.y-a.y)-Math.abs(q.y-a.y);return Math.abs(dy)>1?dy:Math.abs(p.x-((colSlX||0)+40))-Math.abs(q.x-((colSlX||0)+40))})[0].s):null;
       out.rows.push({stt:stt?+stt.s:out.rows.length+1,ma:a.s.replace(/\.$/,'')+'.00.00.'+(mcl?mcl.s:'000'),ten,lo:'',sl,page:pi+1});
     });
   });
