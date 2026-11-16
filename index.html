@@ -841,8 +841,8 @@ const toCsv=rows=>'\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 function csvCapPhat(){const rows=[['Thông báo','Ngày VB','Hạn nhận','STT PL','Mã VT','Mã cân đối','Tên theo danh pháp','Tên trên văn bản','Chủng loại cân đối','Lô','Giao','Đã nhận','Còn lại','Ngày nhận','Số phiếu giao hàng','Trạng thái']];
   tbSorted().forEach(t=>cpOf(t.id).forEach(c=>{const ph=phOf(c.id);const n=ph.reduce((a,p)=>a+(Number(p.sl)||0),0);const g=Number(c.sl)||0;
     rows.push([t.so,dmy(t.ngay),dmy(t.han),c.stt,c.ma,mcdOf(c),dpName0(c),c.ten,grpOf(c),c.lo,g,n,g-n,ph.map(p=>dmy(p.ngay)).join('; '),ph.map(p=>p.pxk).filter(Boolean).join('; '),status(g,n,t.han).t])}));return toCsv(rows)}
-function csvPhieu(){const rows=[['Ngày nhận','Thông báo','Mã VT','Lô','Số lượng','Số phiếu giao hàng','Người nhận','Ghi chú','Số seri','Còn thiếu chứng từ']];
-  Object.values(S.ph).sort((a,b)=>(a.ngay||'').localeCompare(b.ngay||'')).forEach(p=>{const c=S.cp[p.cp]||{};const t=S.tb[c.tb]||{};rows.push([dmy(p.ngay),t.so,c.ma,c.lo,p.sl,p.pxk,p.nguoi,p.ghi,p.nSeri||0,thieuCTN(p).join('; ')])});return toCsv(rows)}
+function csvPhieu(){const rows=[['Thông báo','Ngày TB','Ngày nhận','Mã cân đối','Mã VT','Số lượng']];
+  Object.values(S.ph).sort((a,b)=>(a.ngay||'').localeCompare(b.ngay||'')).forEach(p=>{const c=S.cp[p.cp]||{};const t=S.tb[c.tb]||{};rows.push([t.so,dmy(t.ngay),dmy(p.ngay),mcdOf(c),c.ma,p.sl])});return toCsv(rows)}
 let DL=null;
 async function save(name,data){if(!DL)return;try{await DL.save({filename:name,data:new Blob([data],{type:'text/csv;charset=utf-8'})})}catch(e){}}
 const stamp=()=>todayISO();
