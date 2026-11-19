@@ -1865,19 +1865,57 @@ async function pgLoad(files){hideMsg('pgMsg');const fs=[...files||[]].filter(f=>
   if(bad.length) showMsg('pgMsg','err','Chưa đọc được: '+bad.join('; ')); else showMsg('pgMsg','ok','Đã đọc '+ok+' phiếu giao hàng. Kiểm tra kỹ rồi bấm Lưu.');
   pgRender();
 }
+/* Quy trình mới: phân bổ trên CMIS, không còn Thông báo EVNHCMC cho từng lô hàng.
+   Khi phiếu giao hàng không khớp được cấp phát có sẵn, tự tạo 1 "Thông báo đại diện"
+   theo tháng (so dạng PGH-MM/YYYY) + dòng cấp phát tương ứng, để vẫn giữ nguyên cách
+   tính Tổng quan/tiến độ hiện tại (vốn dựa trên Thông báo + cấp phát). */
+function pghAutoTbId(ngay){return 'pgh-'+((ngay||todayISO()).slice(0,7))}
+async function ensureAutoTb(ngay){
+  const id=pghAutoTbId(ngay);
+  if(S.tb[id]) return id;
+  const ym=(ngay||todayISO()).slice(0,7);const parts=ym.split('-');const y=parts[0],m=parts[1];
+  const so='PGH-'+m+'/'+y, first=y+'-'+m+'-01';
+  try{await S.db.doc('thongbao/'+id).set({so,ngay:first,han:addDays(first,30),
+    noiDung:'Thông báo đại diện tự động, tổng hợp phiếu giao hàng TNĐL tháng '+m+'/'+y+' (quy trình mới phân bổ trên CMIS, không có văn bản TB-EVNHCMC riêng).',
+    tongVB:null,auto:true},{merge:true})}catch(e){}
+  return id;
+}
+async function ensureAutoCp(tbId,ma,lo,sl,stt){
+  const d=dpOf(ma);
+  const id=tbId+'_'+String(ma).replace(/[^0-9A-Za-z]+/g,'')+(lo?('_'+String(lo).replace(/[^0-9A-Za-z]+/g,'')):'');
+  try{await S.db.doc('capphat/'+id).set({tb:tbId,stt,ma,ten:d?d.ten:'',nhom:d?d.nhom:'Khác',lo:lo||'',sl},{merge:true})}catch(e){}
+  return id;
+}
 async function pgSaveAll(){
   if(!S.db) return;const btn=$('pgSaveAll');if(btn)btn.disabled=true;
-  let n=0,err=0;
+  let n=0,err=0,auto=0;
+  const tbCache={},cpCache={},sttNext={};
   for(const q of [...PGQ]){
     for(const r of q.rows){
       if(!(r.sl>0)) continue;
-      const c=r.cId?S.cp[r.cId]:null;
-      try{await S.db.collection('phieugiaohang').add({so:q.so,ngay:q.ngay,pxkNoiBo:q.pxkNoiBo||'',ma:r.ma,lo:r.lo||'',sl:r.sl,tb:c?c.tb:'',cp:c?c.id:'',used:false,createdAt:new Date().toISOString(),by:S.me||null});n++}
-      catch(e){err++}
+      try{
+        let tbId='',cpId='';
+        if(r.cId&&S.cp[r.cId]){const c=S.cp[r.cId];tbId=c.tb;cpId=c.id}
+        else{
+          const ym=(q.ngay||todayISO()).slice(0,7);
+          if(!tbCache[ym]) tbCache[ym]=await ensureAutoTb(q.ngay);
+          tbId=tbCache[ym];
+          const key=tbId+'|'+r.ma+'|'+(r.lo||'');
+          if(cpCache[key]){cpCache[key].sl+=r.sl;try{await S.db.doc('capphat/'+cpCache[key].id).update({sl:cpCache[key].sl})}catch(e){}cpId=cpCache[key].id}
+          else{
+            if(sttNext[tbId]==null) sttNext[tbId]=Object.values(S.cp).filter(c=>c.tb===tbId).length+1;
+            cpId=await ensureAutoCp(tbId,r.ma,r.lo,r.sl,sttNext[tbId]);sttNext[tbId]++;
+            cpCache[key]={id:cpId,sl:r.sl};
+          }
+          auto++;
+        }
+        await S.db.collection('phieugiaohang').add({so:q.so,ngay:q.ngay,pxkNoiBo:q.pxkNoiBo||'',ma:r.ma,lo:r.lo||'',sl:r.sl,tb:tbId,cp:cpId,used:false,createdAt:new Date().toISOString(),by:S.me||null});
+        n++
+      }catch(e){err++}
     }
   }
   PGQ.length=0;pgRender();
-  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(err?' Lỗi '+err+' dòng, thử lại.':''));
+  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(auto?' ('+auto+' dòng tự tạo Thông báo đại diện (PGH) do chưa có cấp phát sẵn.)':'')+(err?' Lỗi '+err+' dòng, thử lại.':''));
   if(btn)btn.disabled=false;
 }
 function renderPgh(){
