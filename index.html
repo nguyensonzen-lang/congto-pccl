@@ -157,6 +157,8 @@ h2{font-size:17px;margin:0;font-weight:700;color:var(--accent)}
 .s-done{color:var(--ok);background:var(--ok-bg)} .s-prog{color:var(--accent);background:var(--sunk)}
 .s-none{color:var(--idle);background:var(--idle-bg)} .s-soon{color:var(--warn);background:var(--warn-bg)} .s-late{color:var(--bad);background:var(--bad-bg)}
 .tablewrap{overflow-x:auto;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.stick-act table th:last-child,.stick-act table td:last-child{position:sticky;right:0;background:var(--surface);box-shadow:-6px 0 8px -6px rgba(15,23,42,.25);z-index:1}
+.stick-act table th:last-child{background:var(--sunk)}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--sunk);font-weight:600;white-space:nowrap}
@@ -343,7 +345,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
       <button id="btnCsv3" type="button" hidden>Xuất Excel (CSV)</button>
     </div>
     <div class="panel"><form class="row" id="fSeriQ2" novalidate style="flex-wrap:nowrap"><input id="tSeriQ2" placeholder="Tra cứu số seri công tơ (đã nhận, kế hoạch trả, đã trả)" autocomplete="off" inputmode="search"><button type="submit">Tra cứu</button></form><div id="tSeriRes2" style="margin-top:10px"></div></div>
-    <div class="tablewrap"><table>
+    <div class="tablewrap stick-act"><table>
       <thead><tr><th>Ngày nhận</th><th>Thông báo</th><th>Mã VT · Lô</th><th class="n">SL</th><th>Số phiếu giao hàng</th><th>Người nhận</th><th>Ghi chú</th><th>Seri</th><th>Người ghi</th><th></th></tr></thead>
       <tbody id="logBody"></tbody></table></div>
   </section>
@@ -533,7 +535,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
       <button id="tCsv3" type="button" hidden>Xuất Excel (CSV)</button>
     </div>
     <div class="panel"><form class="row" id="fSeriQ" novalidate style="flex-wrap:nowrap"><input id="tSeriQ" placeholder="Tra cứu số seri công tơ (VD 17081053)" autocomplete="off" inputmode="search"><button type="submit">Tra cứu</button></form><div id="tSeriRes" style="margin-top:10px"></div></div>
-    <div class="tablewrap"><table>
+    <div class="tablewrap stick-act"><table>
       <thead><tr><th>Ngày trả</th><th>Văn bản</th><th>Mã VT · Lý do</th><th class="n">SL</th><th>Phiếu XK PCCL</th><th>Phiếu NK/BB TNĐL</th><th>Tình trạng</th><th>Seri</th><th>Nhận lại</th><th>Người giao</th><th></th></tr></thead>
       <tbody id="tLogBody"></tbody></table></div>
   </section>
@@ -837,18 +839,19 @@ $('btnCopy').addEventListener('click',()=>{const txt=reportText();const box=$('c
 
 /* ---------- CSV ---------- */
 const csvCell=v=>{const s=String(v??'');return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-const toCsv=rows=>'\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+const toCsv=rows=>'\ufeffsep=,\r\n'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 function csvCapPhat(){const rows=[['Thông báo','Ngày VB','Hạn nhận','STT PL','Mã VT','Mã cân đối','Tên theo danh pháp','Tên trên văn bản','Chủng loại cân đối','Lô','Giao','Đã nhận','Còn lại','Ngày nhận','Số phiếu giao hàng','Trạng thái']];
   tbSorted().forEach(t=>cpOf(t.id).forEach(c=>{const ph=phOf(c.id);const n=ph.reduce((a,p)=>a+(Number(p.sl)||0),0);const g=Number(c.sl)||0;
     rows.push([t.so,dmy(t.ngay),dmy(t.han),c.stt,c.ma,mcdOf(c),dpName0(c),c.ten,grpOf(c),c.lo,g,n,g-n,ph.map(p=>dmy(p.ngay)).join('; '),ph.map(p=>p.pxk).filter(Boolean).join('; '),status(g,n,t.han).t])}));return toCsv(rows)}
-function csvPhieu(){const rows=[['Thông báo','Ngày TB','Ngày nhận','Mã cân đối','Mã VT','Số lượng']];
-  Object.values(S.ph).sort((a,b)=>(a.ngay||'').localeCompare(b.ngay||'')).forEach(p=>{const c=S.cp[p.cp]||{};const t=S.tb[c.tb]||{};rows.push([t.so,dmy(t.ngay),dmy(p.ngay),mcdOf(c),c.ma,p.sl])});return toCsv(rows)}
+async function csvPhieu(){await loadAllPhSeri();const rows=[['Thông báo','Ngày TB','Ngày nhận','Mã cân đối','Mã VT','Lô','Tên VTTB theo danh pháp','Số lượng','Số phiếu giao hàng','Người nhận','Ghi chú','Seri','Người ghi']];
+  Object.values(S.ph).sort((a,b)=>(a.ngay||'').localeCompare(b.ngay||'')).forEach(p=>{const c=S.cp[p.cp]||{};const t=S.tb[c.tb]||{};const nm=p.by?(S.names[p.by]||''):'';const seri=(SCN.ph[p.id]||[]).join(' ');
+    rows.push([t.so,dmy(t.ngay),dmy(p.ngay),mcdOf(c),c.ma,c.lo||'',dpName0(c),p.sl,p.pxk||'',p.nguoi||'',p.ghi||'',seri,nm])});return toCsv(rows)}
 let DL=null;
 async function save(name,data){if(!DL)return;try{await DL.save({filename:name,data:new Blob([data],{type:'text/csv;charset=utf-8'})})}catch(e){}}
 const stamp=()=>todayISO();
 $('btnCsv1').addEventListener('click',()=>save(stamp()+'_TheoDoi_TiepNhanCongTo_PCCL.csv',csvCapPhat()));
 $('btnCsv2').addEventListener('click',()=>save(stamp()+'_TheoDoi_TiepNhanCongTo_PCCL.csv',csvCapPhat()));
-$('btnCsv3').addEventListener('click',()=>save(stamp()+'_NhatKy_PhieuNhanCongTo_PCCL.csv',csvPhieu()));
+$('btnCsv3').addEventListener('click',async()=>save(stamp()+'_NhatKy_PhieuNhanCongTo_PCCL.csv',await csvPhieu()));
 
 /* ---------- IMPORT EXCEL ---------- */
 const COLS_TN=[
