@@ -301,6 +301,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
       <form class="entry" id="fPhieu" style="margin-top:14px" novalidate>
         <label class="full">Thông báo điều động<select id="fTb" required></select></label>
         <label class="full">Dòng cấp phát (mã VT · lô)<select id="fCp" required></select></label>
+        <label class="full">Chọn phiếu giao hàng có sẵn (tuỳ chọn)<select id="fPgh"></select></label>
         <div class="full m-show" id="fMulti"></div>
         <div class="avail full" id="fAvail"><div>Được giao<b id="aGiao">–</b></div><div>Đã nhận<b id="aNhan">–</b></div><div>Còn lại<b id="aCon">–</b></div></div>
         <label>Ngày nhận<input type="date" id="fNgay" required></label>
@@ -393,6 +394,23 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
       <details class="lines" style="margin-top:12px"><summary>Cấu trúc cột của file mẫu</summary>
         <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>Cột</th><th>Bắt buộc</th><th>Cách ghi</th></tr></thead><tbody id="impSpec"></tbody></table></div>
       </details>
+    </div>
+    <div class="panel dm-edit" id="pgPanel">
+      <div class="sec-head"><h2>Nhập phiếu giao hàng từ PDF</h2></div>
+      <p class="hint">Thả file PDF Phiếu giao hàng từ TNĐL (có đủ các liên trong 1 file cũng được, trang tự bỏ liên trùng). Trang tự đọc Số phiếu giao hàng, Mã VT, Lô, Số lượng và khớp với dòng cấp phát tương ứng để điền sẵn khi ghi Nhập phiếu nhận. Đọc PDF có thể sai lệch, kiểm tra kỹ bảng bên dưới trước khi lưu.</p>
+      <div class="dropzone" id="pgDrop" style="margin-top:12px">
+        <span>Kéo thả file PDF phiếu giao hàng vào đây, hoặc</span>
+        <label class="filebtn"><input type="file" id="pgFile" accept=".pdf,application/pdf" multiple><span>Chọn file PDF phiếu giao hàng</span></label>
+      </div>
+      <div id="pgMsg" hidden style="margin-top:12px"></div>
+      <div id="pgOut" style="margin-top:12px"></div>
+    </div>
+    <div class="panel dm-edit" id="pghListPanel">
+      <div class="sec-head"><h2>Danh mục phiếu giao hàng</h2></div>
+      <p class="hint">Danh sách phiếu giao hàng đã nhập, dùng để điền sẵn khi ghi Nhập phiếu nhận. Phiếu đã dùng sẽ tự ẩn khỏi danh sách chọn ở form nhập.</p>
+      <div class="tablewrap" style="margin-top:12px"><table>
+        <thead><tr><th>Số phiếu giao hàng</th><th>Ngày</th><th>Mã VT</th><th>Lô</th><th class="n">SL</th><th>Khớp Thông báo</th><th>Trạng thái</th><th></th></tr></thead>
+        <tbody id="pghBody"></tbody></table></div>
     </div>
     <div class="panel dm-edit">
       <h2>Thêm thông báo mới (nhập tay)</h2>
@@ -617,7 +635,8 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
-const S={raw:{},isAdmin:false,trashTb:{},trashCp:{},trashVt:{},trashKh:{},tb:{},cp:{},ph:{},vt:{},kh:{},dt:{},dp:{},mcd:{},ct:{},kx:{},loaded:{tb:false,cp:false,ph:false,vt:false,kh:false,dt:false,dp:false,mcd:false,ct:false,kx:false},editT:null,confirmDelT:null,forceT:false,db:null,user:null,canWrite:true,me:null,names:{},editing:null,confirmDel:null};
+const S={raw:{},isAdmin:false,trashTb:{},trashCp:{},trashVt:{},trashKh:{},tb:{},cp:{},ph:{},vt:{},kh:{},dt:{},dp:{},mcd:{},ct:{},kx:{},pgh:{},loaded:{tb:false,cp:false,ph:false,vt:false,kh:false,dt:false,dp:false,mcd:false,ct:false,kx:false,pgh:false},editT:null,confirmDelT:null,forceT:false,db:null,user:null,canWrite:true,me:null,names:{},editing:null,confirmDel:null};
+let FPGH='';
 const $=id=>document.getElementById(id);
 const fmt=n=>(Number(n)||0).toLocaleString('vi-VN');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -664,7 +683,7 @@ function render(){
   const ns=nhomStats(); let tg=0,tn=0;
   $('nhomBody').innerHTML=ns.length?ns.map(([k,v])=>{tg+=v.g;tn+=v.n;const w=v.g?v.n*100/v.g:0;return '<tr><td>'+esc(k)+'</td><td class="n">'+fmt(v.g)+'</td><td class="n">'+fmt(v.n)+'</td><td class="n '+(v.g-v.n>0?'rest-pos':'rest-zero')+'">'+fmt(v.g-v.n)+'</td><td><div class="mini"><div class="bar"><i style="width:'+w+'%"></i></div><span class="hint">'+pct(v.n,v.g).toLocaleString('vi-VN')+'%</span></div></td></tr>'}).join('')+
     '<tr class="sum"><td>Tổng cộng</td><td class="n">'+fmt(tg)+'</td><td class="n">'+fmt(tn)+'</td><td class="n">'+fmt(tg-tn)+'</td><td></td></tr>':'<tr><td colspan="5" class="empty">Chưa có dòng cấp phát.</td></tr>';
-  renderShortcuts(); renderCp(); renderLog(); renderDm(); renderFormSelects(); IMP_TN.render(); IMP_TR.render(); renderTra(); mRender('tn'); mRender('tra'); renderCtTn(); renderDmX('tn'); renderDmX('tra'); renderDp(); renderCho();
+  renderShortcuts(); renderCp(); renderLog(); renderDm(); renderFormSelects(); IMP_TN.render(); IMP_TR.render(); renderTra(); mRender('tn'); mRender('tra'); renderCtTn(); renderDmX('tn'); renderDmX('tra'); renderDp(); renderCho(); renderPgh();
 }
 const IC={tr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',np:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M12 11v6M9 14h6"/></svg>',nk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',cp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>'};
 function renderShortcuts(){
@@ -717,15 +736,26 @@ function renderDm(){
 }
 
 function renderFormSelects(){
-  const fTb=$('fTb'), fCp=$('fCp'); const curTb=fTb.value, curCp=fCp.value;
+  const fTb=$('fTb'), fCp=$('fCp'), fPgh=$('fPgh'); const curTb=fTb.value, curCp=fCp.value, curPgh=fPgh?fPgh.value:'';
   const tbs=tbSorted();
   fTb.innerHTML=tbs.map(t=>{const s=tbStats(t.id);return '<option value="'+esc(t.id)+'">'+esc(t.so)+' · còn '+fmt(s.con)+'/'+fmt(s.g)+'</option>'}).join('');
   if(curTb&&S.tb[curTb]) fTb.value=curTb; else { const firstOpen=tbs.find(t=>tbStats(t.id).con>0); if(firstOpen) fTb.value=firstOpen.id; }
   const cps=cpOf(fTb.value);
   fCp.innerHTML=cps.map(c=>{const con=(Number(c.sl)||0)-nhanOf(c.id);return '<option value="'+esc(c.id)+'">STT '+esc(c.stt)+' · '+(dpOf(c.ma)?esc(dpOf(c.ma).ten)+' · ':'')+esc(c.ma)+(c.lo?' · lô '+esc(c.lo):'')+' · còn '+fmt(con)+'</option>'}).join('');
   if(curCp&&cps.some(c=>c.id===curCp)) fCp.value=curCp; else {const o=cps.find(c=>(Number(c.sl)||0)-nhanOf(c.id)>0); if(o) fCp.value=o.id;}
+  if(fPgh){
+    const list=Object.values(S.pgh||{}).filter(p=>!p.used).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+    fPgh.innerHTML='<option value="">— Không dùng, nhập tay —</option>'+list.map(p=>{const t=S.tb[p.tb];return '<option value="'+esc(p.id)+'">'+esc(p.so)+' · '+esc(p.ma)+(p.lo?' · lô '+esc(p.lo):'')+' · '+fmt(p.sl)+' cái'+(t?' · '+esc(t.so):' · chưa gắn TB')+'</option>'}).join('');
+    if(curPgh&&list.some(p=>p.id===curPgh)) fPgh.value=curPgh; else FPGH='';
+  }
   renderAvail();
 }
+$('fPgh').addEventListener('change',()=>{
+  const id=$('fPgh').value; FPGH=id; if(!id) return;
+  const p=S.pgh[id]; if(!p) return;
+  if(p.tb&&S.tb[p.tb]){$('fTb').value=p.tb;renderFormSelects();$('fPgh').value=id;if(p.cp&&S.cp[p.cp])$('fCp').value=p.cp;renderAvail()}
+  if(p.sl!=null)$('fSl').value=p.sl; if(p.so)$('fPxk').value=p.so;
+});
 function renderAvail(){
   const c=S.cp[$('fCp').value];
   if(!c){$('aGiao').textContent=$('aNhan').textContent=$('aCon').textContent='–';$('cpPhieu').innerHTML='<p class="hint">Chọn một dòng cấp phát.</p>';return}
@@ -765,7 +795,7 @@ $('fTb').addEventListener('change',()=>{$('fCp').value='';renderFormSelects()});
 $('fCp').addEventListener('change',renderAvail);
 $('btnDu').addEventListener('click',()=>{const c=S.cp[$('fCp').value];if(!c)return;let n=nhanOf(c.id);if(S.editing){const p=S.ph[S.editing];if(p&&p.cp===c.id)n-=Number(p.sl)||0}$('fSl').value=Math.max((Number(c.sl)||0)-n,0)});
 function resetForm(){S.editing=null;$('formTitle').textContent='Nhập phiếu nhận hàng';$('btnCancelEdit').hidden=true;$('btnSave').textContent='Lưu phiếu';
-  $('fSl').value='';$('fPxk').value='';$('fPnk').value='';$('fGhi').value='';$('fNgay').value=todayISO();$('fNguoi').value=lsGet('ct_nguoi')||''}
+  $('fSl').value='';$('fPxk').value='';$('fPnk').value='';$('fGhi').value='';$('fNgay').value=todayISO();$('fNguoi').value=lsGet('ct_nguoi')||'';if($('fPgh'))$('fPgh').value='';FPGH=''}
 $('btnCancelEdit').addEventListener('click',()=>{resetForm();hideMsg('fMsg')});
 $('fPhieu').addEventListener('submit',async ev=>{
   ev.preventDefault(); hideMsg('fMsg');
@@ -784,8 +814,10 @@ $('fPhieu').addEventListener('submit',async ev=>{
   $('btnSave').disabled=true;
   try{
     if(S.editing){const old=S.ph[S.editing];const nb={...old,...body,updatedAt:new Date().toISOString(),updatedBy:S.me||null};delete nb.id;await S.db.doc('phieu/'+S.editing).set(nb);showMsg('fMsg','ok','Đã cập nhật phiếu.');resetForm();}
-    else{body.createdAt=new Date().toISOString();body.by=S.me||null;await S.db.collection('phieu').add(body);showMsg('fMsg','ok','Đã lưu phiếu: '+fmt(sl)+' cái, '+cpLabel(c)+'. Còn lại '+fmt(con-sl)+'.');
-      $('fSl').value='';$('fPxk').value='';$('fPnk').value='';$('fGhi').value='';}
+    else{body.createdAt=new Date().toISOString();body.by=S.me||null;const newRef=await S.db.collection('phieu').add(body);
+      if(FPGH){try{await S.db.doc('phieugiaohang/'+FPGH).set({used:true,usedAt:new Date().toISOString(),usedPhieu:newRef.id},{merge:true})}catch(e){}}
+      showMsg('fMsg','ok','Đã lưu phiếu: '+fmt(sl)+' cái, '+cpLabel(c)+'. Còn lại '+fmt(con-sl)+'.');
+      $('fSl').value='';$('fPxk').value='';$('fPnk').value='';$('fGhi').value='';if($('fPgh'))$('fPgh').value='';FPGH='';}
   }catch(e){showMsg('fMsg','err',e&&e.code==='invalid_argument'?'Bạn chưa có quyền ghi dữ liệu trên trang này.':'Lưu chưa được ('+(e&&e.code||'lỗi')+'). Thử lại sau ít phút.')}
   finally{$('btnSave').disabled=false}
 });
@@ -1765,6 +1797,114 @@ function pdfGo(q){
     if(b.dataset.act==='drop'){PDFQ.splice(PDFQ.indexOf(q),1);pdfRender()}else if(b.dataset.act==='go')pdfGo(q)});
 });
 
+/* ---- NHẬP PHIẾU GIAO HÀNG TỪ PDF ---- */
+function pgParseVN(s){if(s==null||s==='')return null;const n=parseFloat(String(s).trim().replace(/\./g,'').replace(',','.'));return isNaN(n)?null:n}
+async function pgExtract(file){
+  const lib=await ensurePdf();
+  const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,disableFontFace:true,verbosity:0}).promise;
+  const recs=[],seen=new Set();
+  for(let p=1;p<=Math.min(doc.numPages,30);p++){
+    const pg=await doc.getPage(p);const tc=await pg.getTextContent();
+    const rows={};
+    tc.items.forEach(it=>{if(!it.str||!it.str.trim())return;const y=Math.round(it.transform[5]/2)*2;(rows[y]=rows[y]||[]).push(it)});
+    const ys=Object.keys(rows).map(Number).sort((a,b)=>b-a);
+    const text=ys.map(y=>rows[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ')).join('\n').replace(/[ \t]+/g,' ');
+    if(!/PHIẾU\s*GIAO\s*HÀNG/i.test(text)) continue;
+    const g=re=>{const m=text.match(re);return m?m[1].trim():''};
+    const so=g(/Số:\s*(\S+)/);
+    if(!so||seen.has(so)) continue;
+    seen.add(so);
+    const dm=text.match(/Ngày lập phiếu:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const ngay=dm?dm[3]+'-'+dm[2].padStart(2,'0')+'-'+dm[1].padStart(2,'0'):'';
+    const pxkNoiBo=g(/Phiếu xuất kho:\s*(\S+)/);
+    const donvi=g(/Địa chỉ \(Bộ phận\):\s*(.*?)$/m);
+    const rows2=[];
+    const maRe=/\b(\d\.\d{2}\.\d{2}\.\d{3}(?:\.[0-9A-Za-z]{2,3}){1,3})\b/g;let mm;
+    while((mm=maRe.exec(text))){
+      const ma=mm[1];const win=text.slice(mm.index,mm.index+300);
+      const loM=win.match(/\b([A-Z0-9]{1,10}\/\d{2,4})\b/);const lo=loM?loM[1]:'';
+      const slM=win.match(/\b(?:Cái|Bộ|Cuộn|Kg|M)\s+([\d.,]+)\s+([\d.,]+)/);
+      const slyc=slM?pgParseVN(slM[1]):null,sltx=slM?pgParseVN(slM[2]):null;
+      rows2.push({ma,lo,sl:sltx!=null?sltx:slyc,cId:''});
+    }
+    recs.push({file:file.name,so,ngay,pxkNoiBo,donvi,rows:rows2});
+  }
+  return recs;
+}
+function pghMatch(ma,lo){
+  const exact=Object.values(S.cp).find(c=>c.ma===ma&&(c.lo||'')===(lo||''));
+  if(exact) return exact;
+  const cands=Object.values(S.cp).filter(c=>c.ma===ma);
+  return cands.length===1?cands[0]:null;
+}
+const PGQ=[];let pgSeq=0;
+function pgRowsFlat(){const out=[];PGQ.forEach(q=>q.rows.forEach((r,ri)=>out.push({qid:q.id,ri,file:q.file,so:q.so,ngay:q.ngay,ma:r.ma,lo:r.lo,sl:r.sl,cId:r.cId})));return out}
+function pgRender(){
+  const rows=pgRowsFlat();
+  $('pgOut').innerHTML=!rows.length?'':
+    '<div class="tablewrap"><table><thead><tr><th>Tệp</th><th>Số phiếu giao hàng</th><th>Ngày</th><th>Mã VT</th><th>Lô</th><th class="n">SL</th><th>Khớp với Thông báo</th><th></th></tr></thead><tbody>'+
+    rows.map(r=>{
+      const opts=Object.values(S.cp).filter(c=>c.ma===r.ma).map(c=>{const t=S.tb[c.tb];return '<option value="'+esc(c.id)+'"'+(c.id===r.cId?' selected':'')+'>'+esc(t?t.so:'?')+' · '+esc(cpLabel(c))+'</option>'}).join('');
+      return '<tr data-q="'+esc(r.qid)+'" data-ri="'+r.ri+'"><td class="hint">'+esc(r.file)+'</td>'+
+        '<td><input data-f="so" value="'+esc(r.so)+'" style="width:140px"></td>'+
+        '<td><input type="date" data-f="ngay" value="'+esc(r.ngay)+'" style="width:140px"></td>'+
+        '<td><input data-f="ma" value="'+esc(r.ma)+'" style="width:170px"></td>'+
+        '<td><input data-f="lo" value="'+esc(r.lo||'')+'" style="width:90px"></td>'+
+        '<td class="n"><input type="number" data-f="sl" value="'+(r.sl==null?'':esc(r.sl))+'" style="width:80px"></td>'+
+        '<td><select data-f="cp"><option value="">— Chưa khớp, chọn tay —</option>'+opts+'</select></td>'+
+        '<td><button type="button" class="small danger" data-act="drop">Bỏ dòng</button></td></tr>'}).join('')+
+    '</tbody></table></div><div class="row" style="margin-top:10px"><button class="primary" type="button" id="pgSaveAll">Lưu '+rows.length+' phiếu giao hàng</button><button type="button" id="pgDropAll">Bỏ hết</button></div>';
+}
+async function pgLoad(files){hideMsg('pgMsg');const fs=[...files||[]].filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');
+  if(!fs.length) return showMsg('pgMsg','err','Chọn file PDF phiếu giao hàng.');
+  showMsg('pgMsg','info','Đang đọc '+fs.length+' file PDF…');let ok=0,bad=[];
+  for(const f of fs){try{if(f.size>20*1024*1024)throw new Error('big');const recs=await pgExtract(f);
+      if(!recs.length){bad.push(f.name+' (không thấy Phiếu giao hàng trong file)');continue}
+      recs.forEach(rec=>{rec.rows.forEach(r=>{r.cId=(pghMatch(r.ma,r.lo)||{}).id||''});PGQ.push({id:'g'+(++pgSeq),file:rec.file,so:rec.so,ngay:rec.ngay,pxkNoiBo:rec.pxkNoiBo,rows:rec.rows});ok++});}
+    catch(e){bad.push(f.name+(e&&e.message==='script'?' (chưa tải được bộ đọc PDF, kiểm tra mạng)':e&&e.message==='big'?' (lớn hơn 20 MB)':' (không đọc được, có thể là bản scan ảnh)'))}}
+  if(bad.length) showMsg('pgMsg','err','Chưa đọc được: '+bad.join('; ')); else showMsg('pgMsg','ok','Đã đọc '+ok+' phiếu giao hàng. Kiểm tra kỹ rồi bấm Lưu.');
+  pgRender();
+}
+async function pgSaveAll(){
+  if(!S.db) return;const btn=$('pgSaveAll');if(btn)btn.disabled=true;
+  let n=0,err=0;
+  for(const q of [...PGQ]){
+    for(const r of q.rows){
+      if(!(r.sl>0)) continue;
+      const c=r.cId?S.cp[r.cId]:null;
+      try{await S.db.collection('phieugiaohang').add({so:q.so,ngay:q.ngay,pxkNoiBo:q.pxkNoiBo||'',ma:r.ma,lo:r.lo||'',sl:r.sl,tb:c?c.tb:'',cp:c?c.id:'',used:false,createdAt:new Date().toISOString(),by:S.me||null});n++}
+      catch(e){err++}
+    }
+  }
+  PGQ.length=0;pgRender();
+  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(err?' Lỗi '+err+' dòng, thử lại.':''));
+  if(btn)btn.disabled=false;
+}
+function renderPgh(){
+  const el=$('pghBody');if(!el)return;
+  const list=Object.values(S.pgh||{}).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  el.innerHTML=list.length?list.map(p=>{const t=S.tb[p.tb],c=S.cp[p.cp];
+    return '<tr><td class="code">'+esc(p.so)+'</td><td>'+dmy(p.ngay)+'</td><td class="code">'+esc(p.ma)+'</td><td class="code">'+esc(p.lo||'')+'</td><td class="n">'+fmt(p.sl)+'</td><td>'+(t?esc(t.so)+' · '+esc(cpLabel(c)):'<span class="rest-pos">Chưa gắn</span>')+'</td><td>'+(p.used?'<span class="pill s-same">Đã dùng</span>':'<span class="pill s-prog">Chưa dùng</span>')+'</td><td style="white-space:nowrap">'+(S.canWrite?'<button class="small danger" data-pgdel="'+esc(p.id)+'">Xóa</button>':'')+'</td></tr>'}).join(''):'<tr><td colspan="8" class="empty">Chưa có phiếu giao hàng nào.</td></tr>';
+}
+$('pgFile').addEventListener('change',e=>{const f=e.target.files;pgLoad(f).then(()=>{e.target.value=''})});
+(()=>{const dz=$('pgDrop');['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over')}));
+  ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over')}));dz.addEventListener('drop',e=>pgLoad(e.dataTransfer&&e.dataTransfer.files));})();
+$('pgOut').addEventListener('change',e=>{const tr=e.target.closest('tr[data-q]');if(!tr)return;const q=PGQ.find(x=>x.id===tr.dataset.q);if(!q)return;const ri=Number(tr.dataset.ri);const r=q.rows[ri];const f=e.target.dataset.f;if(!r)return;
+  if(f==='so')q.so=e.target.value.trim();else if(f==='ngay')q.ngay=e.target.value;
+  else if(f==='ma'){r.ma=e.target.value.trim();r.cId=(pghMatch(r.ma,r.lo)||{}).id||''}
+  else if(f==='lo'){r.lo=e.target.value.trim();r.cId=(pghMatch(r.ma,r.lo)||{}).id||''}
+  else if(f==='sl')r.sl=pgParseVN(e.target.value);
+  else if(f==='cp')r.cId=e.target.value;
+  pgRender();
+});
+$('pgOut').addEventListener('click',e=>{
+  if(e.target.id==='pgSaveAll'){pgSaveAll();return}
+  if(e.target.id==='pgDropAll'){PGQ.length=0;pgRender();return}
+  const b=e.target.closest('button[data-act="drop"]'),tr=e.target.closest('tr[data-q]');if(!b||!tr)return;
+  const q=PGQ.find(x=>x.id===tr.dataset.q);if(!q)return;const ri=Number(tr.dataset.ri);q.rows.splice(ri,1);if(!q.rows.length)PGQ.splice(PGQ.indexOf(q),1);pgRender();
+});
+$('pghBody').addEventListener('click',e=>{const id=e.target.dataset.pgdel;if(!id)return;if(!confirm('Xóa phiếu giao hàng '+(S.pgh[id]?S.pgh[id].so:'')+'?'))return;S.db.doc('phieugiaohang/'+id).delete().catch(()=>{})});
+
 /* ---- GHI NHIỀU DÒNG MỘT LẦN ---- */
 const MS={tn:{on:false,tb:'',sel:{},sl:{},pxk:{},pnk:{},seri:{},force:false,sig:''},tra:{on:false,tb:'',sel:{},sl:{},pxk:{},pnk:{},sig:''}};
 const MCFG={
@@ -1889,7 +2029,7 @@ $('fSeriFile').addEventListener('change',async e=>{const f=e.target.files[0];e.t
     showMsg('fMsg','info','Đã lấy '+fmt(rows.length)+' seri từ '+f.name+note+'. Kiểm tra số lượng khớp trước khi lưu.')}
   catch(err){showMsg('fMsg','err','Không đọc được file seri.')}});
 const _resetForm=resetForm; resetForm=function(){_resetForm();S.forceN=false;if($('fSeri')){$('fSeri').value='';renderSeriInfoN()}};
-function editPhieuN(id){const p=S.ph[id];if(!p)return;if(MS.tn.on)mSetMode('tn',false);S.editing=id;S.forceN=false;location.hash='nhap-phieu';
+function editPhieuN(id){const p=S.ph[id];if(!p)return;if(MS.tn.on)mSetMode('tn',false);S.editing=id;S.forceN=false;location.hash='nhap-phieu';FPGH='';if($('fPgh'))$('fPgh').value='';
   $('fTb').value=p.tb;renderFormSelects();$('fCp').value=p.cp;renderAvail();
   $('fNgay').value=p.ngay||'';$('fSl').value=p.sl;$('fPxk').value=p.pxk||'';$('fPnk').value=p.pnk||'';$('fNguoi').value=p.nguoi||'';$('fGhi').value=p.ghi||'';$('fSeri').value='';
   $('formTitle').textContent='Sửa phiếu ngày '+dmy(p.ngay);$('btnCancelEdit').hidden=false;$('btnSave').textContent='Cập nhật phiếu';hideMsg('fMsg');$('fSeriInfo').textContent='Đang tải danh sách seri…';
@@ -2107,7 +2247,7 @@ function recompute(){const R=S.raw;const act=o=>!o.xoa;
     return [t,l,tt,lt]};
   if('tb' in R||'cp' in R){const [t,l,tt,lt]=pick('tb','cp');S.tb=t;S.cp=l;S.trashTb=tt;S.trashCp=lt}
   if('vt' in R||'kh' in R){const [t,l,tt,lt]=pick('vt','kh');S.vt=t;S.kh=l;S.trashVt=tt;S.trashKh=lt}
-  ['ph','dt','dp','mcd','ct','kx'].forEach(k=>{if(k in R)S[k]=R[k]});
+  ['ph','dt','dp','mcd','ct','kx','pgh'].forEach(k=>{if(k in R)S[k]=R[k]});
 }
 const FL={tn:{T:'tb',L:'cp',tcol:'thongbao',lcol:'capphat',plan:'serikhn',body:'tbBody',trash:'trashTn',word:'phiếu nhận',refs:id=>phOf(id),done:id=>nhanOf(id),lines:id=>cpOf(id),stats:id=>tbStats(id),sorted:()=>tbSorted(),hanAttr:'data-han',doneW:'đã nhận',slW:'giao'},
   tra:{T:'vt',L:'kh',tcol:'vbtra',lcol:'kehoachtra',plan:'serikh',body:'tVbBody',trash:'trashTra',word:'đợt trả',refs:id=>dtOf(id),done:id=>traOf(id),lines:id=>khOf(id),stats:id=>vtStats(id),sorted:()=>vtSorted(),hanAttr:'data-vhan',doneW:'đã trả',slW:'phải trả'}};
@@ -2541,7 +2681,7 @@ function banner(kind,text){const b=$('banner');b.hidden=false;b.className='msg '
   const done=()=>{if(Object.values(S.loaded).every(Boolean)){clearTimeout(timer);$('banner').hidden=true;setSync('Đã đồng bộ')}};
   const sub=(col,key)=>db.collection(col).onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{m[d.id]={...d.data(),id:d.id}});S.raw[key]=m;recompute();if(!snap.metadata.fromCache)S.loaded[key]=true;done();render();if(key==='ph'||key==='dt')resolveNames()},
     e=>{clearTimeout(timer);setSync('Lỗi kết nối');banner('err','Mất kết nối dữ liệu ('+(e&&e.code||'lỗi')+'). Tải lại trang để kết nối lại.')});
-  sub('thongbao','tb'); sub('capphat','cp'); sub('phieu','ph'); sub('vbtra','vt'); sub('kehoachtra','kh'); sub('dottra','dt'); sub('danhphap','dp'); sub('macandoi','mcd'); sub('chotb','ct'); sub('khxoa','kx');
+  sub('thongbao','tb'); sub('capphat','cp'); sub('phieu','ph'); sub('vbtra','vt'); sub('kehoachtra','kh'); sub('dottra','dt'); sub('danhphap','dp'); sub('macandoi','mcd'); sub('chotb','ct'); sub('khxoa','kx'); sub('phieugiaohang','pgh');
 })();
 })();
 </script>
