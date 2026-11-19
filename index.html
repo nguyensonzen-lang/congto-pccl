@@ -870,8 +870,8 @@ $('btnCopy').addEventListener('click',()=>{const txt=reportText();const box=$('c
   try{navigator.clipboard.writeText(txt).then(()=>{box.hidden=false;box.className='msg ok';box.textContent='Đã sao chép báo cáo. Dán vào Zalo hoặc email gửi lãnh đạo phòng.'},fallback)}catch(e){fallback()}});
 
 /* ---------- CSV ---------- */
-const csvCell=v=>{const s=String(v??'');return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-const toCsv=rows=>'\ufeffsep=,\r\n'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+const csvCell=v=>{const s=String(v??'');return /["\t\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const toCsv=rows=>rows.map(r=>r.map(csvCell).join('\t')).join('\r\n');
 function csvCapPhat(){const rows=[['Thông báo','Ngày VB','Hạn nhận','STT PL','Mã VT','Mã cân đối','Tên theo danh pháp','Tên trên văn bản','Chủng loại cân đối','Lô','Giao','Đã nhận','Còn lại','Ngày nhận','Số phiếu giao hàng','Trạng thái']];
   tbSorted().forEach(t=>cpOf(t.id).forEach(c=>{const ph=phOf(c.id);const n=ph.reduce((a,p)=>a+(Number(p.sl)||0),0);const g=Number(c.sl)||0;
     rows.push([t.so,dmy(t.ngay),dmy(t.han),c.stt,c.ma,mcdOf(c),dpName0(c),c.ten,grpOf(c),c.lo,g,n,g-n,ph.map(p=>dmy(p.ngay)).join('; '),ph.map(p=>p.pxk).filter(Boolean).join('; '),status(g,n,t.han).t])}));return toCsv(rows)}
@@ -879,7 +879,12 @@ async function csvPhieu(){await loadAllPhSeri();const rows=[['Thông báo','Ngà
   Object.values(S.ph).sort((a,b)=>(a.ngay||'').localeCompare(b.ngay||'')).forEach(p=>{const c=S.cp[p.cp]||{};const t=S.tb[c.tb]||{};const nm=p.by?(S.names[p.by]||''):'';const seri=(SCN.ph[p.id]||[]).join(' ');
     rows.push([t.so,dmy(t.ngay),dmy(p.ngay),mcdOf(c),c.ma,c.lo||'',dpName0(c),p.sl,p.pxk||'',p.nguoi||'',p.ghi||'',seri,nm])});return toCsv(rows)}
 let DL=null;
-async function save(name,data){if(!DL)return;try{await DL.save({filename:name,data:new Blob([data],{type:'text/csv;charset=utf-8'})})}catch(e){}}
+async function save(name,data){if(!DL)return;
+  // Xuất UTF-16LE + Tab (kèm BOM FF FE): mọi bản Excel/Windows đều tự nhận diện đúng mã Unicode,
+  // không phụ thuộc cấu hình vùng miền của máy — tránh lỗi "Ti?p nh?n"/"CÃ´ng tÆ¡" khi mở trực tiếp.
+  const buf=new ArrayBuffer(2+data.length*2),view=new Uint16Array(buf);view[0]=0xFEFF;
+  for(let i=0;i<data.length;i++) view[i+1]=data.charCodeAt(i);
+  try{await DL.save({filename:name,data:new Blob([buf],{type:'text/csv;charset=utf-16le'})})}catch(e){}}
 const stamp=()=>todayISO();
 $('btnCsv1').addEventListener('click',()=>save(stamp()+'_TheoDoi_TiepNhanCongTo_PCCL.csv',csvCapPhat()));
 $('btnCsv2').addEventListener('click',()=>save(stamp()+'_TheoDoi_TiepNhanCongTo_PCCL.csv',csvCapPhat()));
