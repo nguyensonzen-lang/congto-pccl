@@ -407,7 +407,9 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
     </div>
     <div class="panel dm-edit" id="pghListPanel">
       <div class="sec-head"><h2>Danh mục phiếu giao hàng</h2></div>
-      <p class="hint">Danh sách phiếu giao hàng đã nhập, dùng để điền sẵn khi ghi Nhập phiếu nhận. Phiếu đã dùng sẽ tự ẩn khỏi danh sách chọn ở form nhập.</p>
+      <p class="hint">Danh sách phiếu giao hàng đã nhập. Bấm "Xác nhận nhận đủ" để ghi ngay thành Phiếu nhận (ngày lấy theo ngày trên phiếu giao hàng, số lượng lấy đúng SL đã đọc) — dòng nào số lượng vượt quá phần còn lại của cấp phát sẽ được bỏ qua để Sếp kiểm tra tay ở Nhập phiếu nhận.</p>
+      <div class="row" style="margin-top:10px;align-items:center;gap:10px"><button type="button" id="pghConfirmAll" class="primary">Xác nhận nhận đủ tất cả đang chờ</button><span class="hint" id="pghPendHint"></span></div>
+      <div id="pghConfirmMsg" hidden style="margin-top:10px"></div>
       <div class="tablewrap" style="margin-top:12px"><table>
         <thead><tr><th>Số phiếu giao hàng</th><th>Ngày</th><th>Mã VT</th><th>Lô</th><th class="n">SL</th><th>Khớp Thông báo</th><th>Trạng thái</th><th></th></tr></thead>
         <tbody id="pghBody"></tbody></table></div>
@@ -1935,15 +1937,45 @@ async function pgSaveAll(){
     }
   }
   PGQ.length=0;pgRender();
-  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(auto?' ('+auto+' dòng tự tạo Thông báo riêng theo phiếu giao hàng, do chưa có cấp phát sẵn.)':'')+(err?' Lỗi '+err+' dòng, thử lại.':''));
+  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(auto?' ('+auto+' dòng tự tạo Thông báo riêng theo phiếu giao hàng, do chưa có cấp phát sẵn.)':'')+(err?' Lỗi '+err+' dòng, thử lại.':'')+' Cuộn xuống bảng "Danh mục phiếu giao hàng" bên dưới, bấm "Xác nhận nhận đủ tất cả đang chờ" để ghi ngay thành Phiếu nhận và cập nhật Tổng quan.');
   if(btn)btn.disabled=false;
 }
 function renderPgh(){
   const el=$('pghBody');if(!el)return;
   const list=Object.values(S.pgh||{}).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   el.innerHTML=list.length?list.map(p=>{const t=S.tb[p.tb],c=S.cp[p.cp];
-    return '<tr><td class="code">'+esc(p.so)+'</td><td>'+dmy(p.ngay)+'</td><td class="code">'+esc(p.ma)+'</td><td class="code">'+esc(p.lo||'')+'</td><td class="n">'+fmt(p.sl)+'</td><td>'+(t?esc(t.so)+' · '+esc(cpLabel(c)):'<span class="rest-pos">Chưa gắn</span>')+'</td><td>'+(p.used?'<span class="pill s-same">Đã dùng</span>':'<span class="pill s-prog">Chưa dùng</span>')+'</td><td style="white-space:nowrap">'+(S.canWrite?'<button class="small danger" data-pgdel="'+esc(p.id)+'">Xóa</button>':'')+'</td></tr>'}).join(''):'<tr><td colspan="8" class="empty">Chưa có phiếu giao hàng nào.</td></tr>';
+    return '<tr><td class="code">'+esc(p.so)+'</td><td>'+dmy(p.ngay)+'</td><td class="code">'+esc(p.ma)+'</td><td class="code">'+esc(p.lo||'')+'</td><td class="n">'+fmt(p.sl)+'</td><td>'+(t?esc(t.so)+' · '+esc(cpLabel(c)):'<span class="rest-pos">Chưa gắn</span>')+'</td><td>'+(p.used?'<span class="pill s-same">Đã dùng</span>':'<span class="pill s-prog">Chưa dùng</span>')+'</td><td style="white-space:nowrap">'+(S.canWrite&&!p.used?'<button class="small primary" data-pgok="'+esc(p.id)+'">Xác nhận</button> ':'')+(S.canWrite?'<button class="small danger" data-pgdel="'+esc(p.id)+'">Xóa</button>':'')+'</td></tr>'}).join(''):'<tr><td colspan="8" class="empty">Chưa có phiếu giao hàng nào.</td></tr>';
+  const pend=Object.values(S.pgh||{}).filter(p=>!p.used);
+  const pendSl=pend.reduce((s,p)=>s+(Number(p.sl)||0),0);
+  const btn=$('pghConfirmAll');if(btn){btn.disabled=!pend.length;btn.textContent=pend.length?'Xác nhận nhận đủ tất cả đang chờ ('+fmt(pendSl)+' cái)':'Không còn phiếu nào chờ xác nhận'}
+  const hint=$('pghPendHint');if(hint)hint.textContent=pend.length?pend.length+' phiếu đang chờ xác nhận':'';
 }
+/* Xác nhận nhận đủ từ phiếu giao hàng: ghi thẳng thành Phiếu nhận (ngày theo phiếu giao hàng, SL theo phiếu giao hàng),
+   bỏ qua (để Sếp kiểm tra tay) dòng nào SL vượt quá phần còn lại của cấp phát đã khớp. */
+async function pgConfirmReceive(ids){
+  if(!S.db) return {ok:0,skipped:[]};
+  const src=(ids&&ids.length?ids.map(id=>S.pgh[id]).filter(Boolean):Object.values(S.pgh||{})).filter(p=>!p.used);
+  let ok=0;const skipped=[];
+  for(const p of src){
+    const c=S.cp[p.cp];
+    if(!c){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (chưa khớp được dòng cấp phát nào)');continue}
+    const con=Math.max((Number(c.sl)||0)-nhanOf(c.id),0);const sl=Number(p.sl)||0;
+    if(!(sl>0)||sl>con){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (SL phiếu '+fmt(sl)+', cấp phát chỉ còn '+fmt(con)+' — vào Nhập phiếu nhận kiểm tra tay)');continue}
+    try{
+      const ref=S.db.collection('phieu').doc();
+      await ref.set({cp:c.id,tb:c.tb,ngay:p.ngay||todayISO(),sl,pxk:p.so||'',pnk:'',nguoi:'',ghi:'Tự xác nhận từ phiếu giao hàng TNĐL',nSeri:0,createdAt:new Date().toISOString(),by:S.me||null});
+      await S.db.doc('phieugiaohang/'+p.id).set({used:true,usedAt:new Date().toISOString(),usedPhieu:ref.id},{merge:true});
+      ok++;
+    }catch(e){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (lỗi ghi: '+(e&&e.code||'lỗi')+')')}
+  }
+  return {ok,skipped};
+}
+$('pghConfirmAll').addEventListener('click',async()=>{
+  $('pghConfirmAll').disabled=true;hideMsg('pghConfirmMsg');
+  const {ok,skipped}=await pgConfirmReceive();
+  showMsg('pghConfirmMsg',skipped.length?'err':'ok','Đã xác nhận '+ok+' phiếu thành Phiếu nhận, cập nhật ngay vào Tổng quan.'+(skipped.length?' Còn '+skipped.length+' phiếu lệch số lượng, chưa xác nhận được: '+skipped.join('; ')+'.':''));
+  renderPgh();
+});
 $('pgFile').addEventListener('change',e=>{const f=e.target.files;pgLoad(f).then(()=>{e.target.value=''})});
 (()=>{const dz=$('pgDrop');['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over')}));
   ['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over')}));dz.addEventListener('drop',e=>pgLoad(e.dataTransfer&&e.dataTransfer.files));})();
@@ -1961,7 +1993,13 @@ $('pgOut').addEventListener('click',e=>{
   const b=e.target.closest('button[data-act="drop"]'),tr=e.target.closest('tr[data-q]');if(!b||!tr)return;
   const q=PGQ.find(x=>x.id===tr.dataset.q);if(!q)return;const ri=Number(tr.dataset.ri);q.rows.splice(ri,1);if(!q.rows.length)PGQ.splice(PGQ.indexOf(q),1);pgRender();
 });
-$('pghBody').addEventListener('click',e=>{const id=e.target.dataset.pgdel;if(!id)return;if(!confirm('Xóa phiếu giao hàng '+(S.pgh[id]?S.pgh[id].so:'')+'?'))return;S.db.doc('phieugiaohang/'+id).delete().catch(()=>{})});
+$('pghBody').addEventListener('click',async e=>{
+  const okId=e.target.dataset.pgok;
+  if(okId){e.target.disabled=true;const {ok,skipped}=await pgConfirmReceive([okId]);
+    if(ok)showMsg('pghConfirmMsg','ok','Đã xác nhận thành Phiếu nhận, cập nhật ngay vào Tổng quan.');
+    else if(skipped.length)showMsg('pghConfirmMsg','err','Chưa xác nhận được: '+skipped[0]);
+    renderPgh();return}
+  const id=e.target.dataset.pgdel;if(!id)return;if(!confirm('Xóa phiếu giao hàng '+(S.pgh[id]?S.pgh[id].so:'')+'?'))return;S.db.doc('phieugiaohang/'+id).delete().catch(()=>{})});
 
 /* ---- GHI NHIỀU DÒNG MỘT LẦN ---- */
 const MS={tn:{on:false,tb:'',sel:{},sl:{},pxk:{},pnk:{},seri:{},force:false,sig:''},tra:{on:false,tb:'',sel:{},sl:{},pxk:{},pnk:{},sig:''}};
@@ -2031,7 +2069,10 @@ document.addEventListener('submit',async e=>{const k=e.target.id==='fPhieu'?'tn'
     const cross=jobs.flatMap(j=>j.sr.filter(x=>all.has(x)));if(cross.length){m.force=true;return showMsg(C.msg,'err',cross.length+' seri đã có ở phiếu nhận khác (VD: '+cross.slice(0,5).join(', ')+'). Kiểm tra lại. Nếu đúng, bấm Lưu thêm lần nữa để xác nhận.')}}
   const nguoi=v('nguoi'),ghi=v('ghi'); lsSet('ct_nguoi',nguoi); $(C.btn).disabled=true; let done=0,noSeri=0;
   try{for(const j of jobs){
-      if(k==='tn'){if(!j.sr.length){const {rem}=await remainingPlanN(j.c.id,null);j.sr=rem.slice(0,j.sl)}const ref=S.db.collection('phieu').doc();await S.db.doc('seriphieu/'+ref.id).set({phieu:ref.id,list:j.sr});SCN.ph[ref.id]=j.sr;await ref.set({cp:j.c.id,tb:j.c.tb,ngay,sl:j.sl,pxk:j.pxk,pnk:j.pnk,nguoi,ghi,nSeri:j.sr.length,createdAt:new Date().toISOString(),by:S.me||null});}
+      if(k==='tn'){if(!j.sr.length){const {rem}=await remainingPlanN(j.c.id,null);j.sr=rem.slice(0,j.sl)}const ref=S.db.collection('phieu').doc();await S.db.doc('seriphieu/'+ref.id).set({phieu:ref.id,list:j.sr});SCN.ph[ref.id]=j.sr;await ref.set({cp:j.c.id,tb:j.c.tb,ngay,sl:j.sl,pxk:j.pxk,pnk:j.pnk,nguoi,ghi,nSeri:j.sr.length,createdAt:new Date().toISOString(),by:S.me||null});
+        // Ghi nhiều dòng cũng tự đánh dấu "Đã dùng" cho (các) phiếu giao hàng đã khớp với đúng dòng cấp phát này,
+        // để Danh mục phiếu giao hàng và thẻ "chưa ghi phiếu nhận" ở Tổng quan luôn đúng dù ghi theo cách nào.
+        Object.values(S.pgh||{}).filter(p=>!p.used&&p.cp===j.c.id).forEach(p=>{S.db.doc('phieugiaohang/'+p.id).set({used:true,usedAt:new Date().toISOString(),usedPhieu:ref.id},{merge:true}).catch(()=>{})});}
       else{const {rem}=await remainingPlan(j.c.id,null);const list=rem.slice(0,j.sl);if(list.length!==j.sl)noSeri++;
         const ref=S.db.collection('dottra').doc();await S.db.doc('seridot/'+ref.id).set({dot:ref.id,list});
         await ref.set({kh:j.c.id,tb:j.c.tb,ngay,sl:j.sl,pxk:j.pxk,pnk:j.pnk,tinhTrang:$('tTt').value,goc:$('tGoc').value.trim(),nguoi,ghi,nSeri:list.length,createdAt:new Date().toISOString(),by:S.me||null});SC.allDot=null}
