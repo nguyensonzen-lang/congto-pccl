@@ -698,6 +698,11 @@ function renderShortcuts(){
   else h+=warn.length?'<a class="sc alert" href="#cap-phat"><span class="ic">'+IC.nk+'</span><span><div class="t">'+(late?late+' thông báo quá hạn nhận':warn.length+' thông báo sắp hết hạn')+'</div><div class="d">'+esc(warn.map(t=>t.so.split('/')[0]+' (hạn '+dm(t.han)+')').join(', '))+'</div></span><span class="go">›</span></a>'
     :'<a class="sc calm" href="#cap-phat"><span class="ic">'+IC.nk+'</span><span><div class="t">Không có thông báo sắp hết hạn</div><div class="d">'+(open?open+' thông báo đang chờ nhận':'Tất cả đã nhận đủ')+'</div></span><span class="go">›</span></a>';
   h+='<a class="sc" href="#cap-phat"><span class="ic">'+IC.cp+'</span><span><div class="t">'+(ready?'Còn phải nhận '+fmt(G-N)+' cái':'Chi tiết cấp phát')+'</div><div class="d">Xem chi tiết theo mã VT, lô và số phiếu</div></span><span class="go">›</span></a>';
+  // phiếu giao hàng đã nạp nhưng chưa ghi phiếu nhận — cho Sếp theo dõi hàng đã giao, đang chờ nhập kho
+  const pghList=Object.values(S.pgh||{}).filter(p=>!p.used);
+  const pghSl=pghList.reduce((s,p)=>s+(Number(p.sl)||0),0);
+  const pghSo=new Set(pghList.map(p=>p.so)).size;
+  h+='<a class="sc'+(pghSl?' alert':' calm')+'" href="#danh-muc" data-jump="pghBody"><span class="ic">'+IC.np+'</span><span><div class="t">'+(pghSl?fmt(pghSl)+' cái đã giao hàng, chưa ghi phiếu nhận':'Không có phiếu giao hàng nào đang chờ xử lý')+'</div><div class="d">'+(pghSl?pghSo+' phiếu giao hàng TNĐL đang chờ — vào Nhập phiếu nhận để ghi nhận':'Danh mục phiếu giao hàng trống')+'</div></span><span class="go">›</span></a>';
   $('shortcuts').innerHTML=h;
 }
 
