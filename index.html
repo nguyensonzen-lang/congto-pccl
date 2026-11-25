@@ -944,7 +944,7 @@ const COLS_TR=COLS_TN.map(c=>({...c})).filter(c=>c.k!=='sl');
 })();
 [['so',18],['ngay',12],['han',12],['nd',34],['tong',12],['stt',8],['ma',24],['ten',46],['lo',12],['nhom',26],['sl',12]].forEach(([k,w])=>{const c=COLS_TN.find(c=>c.k===k);if(c)c.wch=w;const d=COLS_TR.find(c=>c.k===k);if(d&&!d.wch)d.wch=w});
 function makeImporter(C){
-const IMP={rows:null,file:'',sel:{},tbSel:{},nhomEdit:{},busy:false};
+const IMP={rows:null,file:'',sel:{},tbSel:{},nhomEdit:{},busy:false,pdfBatch:false};
 function mapHeader(row){
   const map={};
   row.forEach((cell,ci)=>{const h=norm(cell);if(!h)return;const c=C.cols.find(c=>!(c.k in map)&&c.al.some(a=>h===a||h.startsWith(a+' ')));if(c)map[c.k]=ci});
@@ -1050,7 +1050,7 @@ function renderImport(){
   h+='</tbody></table></div><div class="row" style="margin-top:12px"><button class="primary" type="button" id="'+C.p+'Go"'+((nW||tbW)&&!IMP.busy?'':' disabled')+'>Ghi vào danh mục ('+nW+' dòng'+(tbW?', '+tbW+' '+C.w.tb:'')+')</button><button type="button" id="'+C.p+'Cancel"'+(IMP.busy?' disabled':'')+'>Hủy</button><span class="hint" id="'+C.p+'Prog"></span></div>';
   box.innerHTML=h;
 }
-function clearImport(){IMP.rows=null;IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.file='';$(C.p+'FileName').textContent='Chưa chọn file';renderImport()}
+function clearImport(){IMP.rows=null;IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.file='';IMP.pdfBatch=false;$(C.p+'FileName').textContent='Chưa chọn file';renderImport()}
 async function loadFile(f){
   hideMsg(C.p+'Msg');
   if(!f) return;
@@ -1062,7 +1062,7 @@ async function loadFile(f){
     if(!r) {clearImport();return showMsg(C.p+'Msg','err','Không tìm thấy dòng tiêu đề có các cột Số văn bản, Mã VT, '+C.w.slCol+'. Hãy dùng file mẫu của trang.')}
     if(!r.rows.length) {clearImport();return showMsg(C.p+'Msg','err','Sheet '+r.sheet+' chưa có dòng dữ liệu nào.')}
     if(r.rows.length>1000) {clearImport();return showMsg(C.p+'Msg','err','File có '+r.rows.length+' dòng, vượt giới hạn 1.000 dòng mỗi lần nhập.')}
-    IMP.rows=r.rows;IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.file=f.name+' · sheet '+r.sheet;renderImport();
+    IMP.rows=r.rows;IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.pdfBatch=false;IMP.file=f.name+' · sheet '+r.sheet;renderImport();
   }catch(e){clearImport();showMsg(C.p+'Msg','err','Không đọc được file. Lưu lại dạng .xlsx rồi thử lại.')}
 }
 $(C.p+'File').addEventListener('change',e=>{const f=e.target.files[0];loadFile(f);e.target.value=''});
@@ -1108,7 +1108,14 @@ $(C.p+'Tpl').addEventListener('click',async()=>{if(!DL||typeof XLSX==='undefined
   try{await DL.save({filename:C.tplName,data:new Blob([buildTemplate()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})}catch(e){}});
 
 
-function loadRows(rows,label){hideMsg(C.p+'Msg');IMP.rows=rows.map((x,i)=>({r:i+1,...x}));IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.file=label;$(C.p+'FileName').textContent=label;renderImport()}
+function loadRows(rows,label){hideMsg(C.p+'Msg');
+  const merging=IMP.pdfBatch&&IMP.rows&&IMP.rows.length;
+  const base=merging?IMP.rows.length:0;
+  const add=rows.map((x,i)=>({r:base+i+1,...x}));
+  if(merging){IMP.rows=IMP.rows.concat(add);IMP.file=IMP.file+' + '+label;
+    showMsg(C.p+'Msg','info','Đã gộp thêm "'+label+'" vào danh sách đang chờ ghi (tổng '+IMP.rows.length+' dòng). Xử lý xong hết các file PDF rồi mới bấm "Ghi vào danh mục" — bấm sớm sẽ bỏ sót các file nạp sau.')}
+  else{IMP.rows=add;IMP.sel={};IMP.tbSel={};IMP.nhomEdit={};IMP.file=label}
+  IMP.pdfBatch=true;$(C.p+'FileName').textContent=IMP.file;renderImport()}
 return {render:renderImport,loadRows};
 }
 
@@ -1871,17 +1878,17 @@ async function pgLoad(files){hideMsg('pgMsg');const fs=[...files||[]].filter(f=>
   pgRender();
 }
 /* Quy trình mới: phân bổ trên CMIS, không còn Thông báo EVNHCMC cho từng lô hàng.
-   Khi phiếu giao hàng không khớp được cấp phát có sẵn, tự tạo 1 "Thông báo đại diện"
-   theo tháng (so dạng PGH-MM/YYYY) + dòng cấp phát tương ứng, để vẫn giữ nguyên cách
-   tính Tổng quan/tiến độ hiện tại (vốn dựa trên Thông báo + cấp phát). */
-function pghAutoTbId(ngay){return 'pgh-'+((ngay||todayISO()).slice(0,7))}
-async function ensureAutoTb(ngay){
-  const id=pghAutoTbId(ngay);
+   Mỗi phiếu giao hàng khi không khớp được cấp phát có sẵn sẽ tự tạo 1 "Thông báo" RIÊNG
+   của chính nó (số thông báo lấy theo số phiếu giao hàng) — giống hệt cách mỗi thông báo
+   điều động từ PDF tạo ra 1 thông báo riêng — để theo dõi tiến độ từng đợt rõ ràng trong
+   Tổng quan (vốn tính theo Thông báo + cấp phát), thay vì gộp chung theo tháng. */
+function pghAutoTbId(so){return 'pgh-'+String(so||'').trim().replace(/[^0-9A-Za-z]+/g,'').toLowerCase()}
+async function ensureAutoTbForPGH(so,ngay,pxkNoiBo){
+  const id=pghAutoTbId(so||todayISO());
   if(S.tb[id]) return id;
-  const ym=(ngay||todayISO()).slice(0,7);const parts=ym.split('-');const y=parts[0],m=parts[1];
-  const so='PGH-'+m+'/'+y, first=y+'-'+m+'-01';
-  try{await S.db.doc('thongbao/'+id).set({so,ngay:first,han:addDays(first,30),
-    noiDung:'Thông báo đại diện tự động, tổng hợp phiếu giao hàng TNĐL tháng '+m+'/'+y+' (quy trình mới phân bổ trên CMIS, không có văn bản TB-EVNHCMC riêng).',
+  const ngay2=ngay||todayISO();
+  try{await S.db.doc('thongbao/'+id).set({so:'PGH '+(so||id),ngay:ngay2,han:addDays(ngay2,10),
+    noiDung:'Tự tạo từ phiếu giao hàng TNĐL số '+(so||'(không rõ)')+(pxkNoiBo?' (PXK nội bộ '+pxkNoiBo+')':'')+' — quy trình mới phân bổ trên CMIS, không có văn bản TB-EVNHCMC riêng.',
     tongVB:null,auto:true},{merge:true})}catch(e){}
   return id;
 }
@@ -1896,15 +1903,18 @@ async function pgSaveAll(){
   let n=0,err=0,auto=0;
   const tbCache={},cpCache={},sttNext={};
   for(const q of [...PGQ]){
+    let qAutoTbId=null;
     for(const r of q.rows){
       if(!(r.sl>0)) continue;
       try{
         let tbId='',cpId='';
         if(r.cId&&S.cp[r.cId]){const c=S.cp[r.cId];tbId=c.tb;cpId=c.id}
         else{
-          const ym=(q.ngay||todayISO()).slice(0,7);
-          if(!tbCache[ym]) tbCache[ym]=await ensureAutoTb(q.ngay);
-          tbId=tbCache[ym];
+          if(!qAutoTbId){
+            if(!tbCache[q.so]) tbCache[q.so]=await ensureAutoTbForPGH(q.so,q.ngay,q.pxkNoiBo);
+            qAutoTbId=tbCache[q.so];
+          }
+          tbId=qAutoTbId;
           const key=tbId+'|'+r.ma+'|'+(r.lo||'');
           if(cpCache[key]){cpCache[key].sl+=r.sl;try{await S.db.doc('capphat/'+cpCache[key].id).update({sl:cpCache[key].sl})}catch(e){}cpId=cpCache[key].id}
           else{
@@ -1920,7 +1930,7 @@ async function pgSaveAll(){
     }
   }
   PGQ.length=0;pgRender();
-  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(auto?' ('+auto+' dòng tự tạo Thông báo đại diện (PGH) do chưa có cấp phát sẵn.)':'')+(err?' Lỗi '+err+' dòng, thử lại.':''));
+  showMsg('pgMsg',err?'err':'ok','Đã lưu '+n+' phiếu giao hàng.'+(auto?' ('+auto+' dòng tự tạo Thông báo riêng theo phiếu giao hàng, do chưa có cấp phát sẵn.)':'')+(err?' Lỗi '+err+' dòng, thử lại.':''));
   if(btn)btn.disabled=false;
 }
 function renderPgh(){
