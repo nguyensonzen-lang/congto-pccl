@@ -407,7 +407,7 @@ input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)
     </div>
     <div class="panel dm-edit" id="pghListPanel">
       <div class="sec-head"><h2>Danh mục phiếu giao hàng</h2></div>
-      <p class="hint">Danh sách phiếu giao hàng đã nhập. Bấm "Xác nhận nhận đủ" để ghi ngay thành Phiếu nhận (ngày lấy theo ngày trên phiếu giao hàng, số lượng lấy đúng SL đã đọc) — dòng nào số lượng vượt quá phần còn lại của cấp phát sẽ được bỏ qua để Sếp kiểm tra tay ở Nhập phiếu nhận.</p>
+      <p class="hint">Danh sách phiếu giao hàng đã nhập. Bấm "Xác nhận nhận đủ" để ghi ngay thành Phiếu nhận (ngày lấy theo ngày trên phiếu giao hàng, số lượng lấy đúng SL đã đọc). Mỗi phiếu giao hàng không khớp (hoặc đang khớp vào thông báo PGH gộp chung kiểu cũ) sẽ được tách thành thông báo RIÊNG của chính nó — số lấy theo số phiếu, ngày lấy theo ngày trên phiếu, giống hệt 1 thông báo điều động — không gộp/ghi đè vào thông báo PGH cũ nữa. Chỉ dòng khớp vào thông báo TB-EVNHCMC chính thức mà vượt số đã công bố mới bị bỏ qua để Sếp kiểm tra tay ở Nhập phiếu nhận.</p>
       <div class="row" style="margin-top:10px;align-items:center;gap:10px"><button type="button" id="pghConfirmAll" class="primary">Xác nhận nhận đủ tất cả đang chờ</button><span class="hint" id="pghPendHint"></span></div>
       <div id="pghConfirmMsg" hidden style="margin-top:10px"></div>
       <div class="tablewrap" style="margin-top:12px"><table>
@@ -1850,10 +1850,14 @@ async function pgExtract(file){
   }
   return recs;
 }
+function tbIsAutoPgh(tbId){const t=S.tb[tbId];return !!(t&&(t.auto||/^PGH\b/i.test(t.so||'')))}
 function pghMatch(ma,lo){
-  const exact=Object.values(S.cp).find(c=>c.ma===ma&&(c.lo||'')===(lo||''));
+  // Chỉ khớp vào cấp phát thuộc thông báo CHÍNH THỨC (TB-EVNHCMC có văn bản gốc).
+  // Không khớp vào thông báo PGH tự tạo (PGH-MM/YYYY cũ hoặc PGH <số phiếu>) — mỗi phiếu giao hàng không
+  // khớp sẽ được tạo thông báo riêng của chính nó (theo số phiếu + ngày trên phiếu), không gộp chung.
+  const exact=Object.values(S.cp).find(c=>c.ma===ma&&(c.lo||'')===(lo||'')&&!tbIsAutoPgh(c.tb));
   if(exact) return exact;
-  const cands=Object.values(S.cp).filter(c=>c.ma===ma);
+  const cands=Object.values(S.cp).filter(c=>c.ma===ma&&!tbIsAutoPgh(c.tb));
   return cands.length===1?cands[0]:null;
 }
 const PGQ=[];let pgSeq=0;
@@ -1950,15 +1954,35 @@ function renderPgh(){
   const btn=$('pghConfirmAll');if(btn){btn.disabled=!pend.length;btn.textContent=pend.length?'Xác nhận nhận đủ tất cả đang chờ ('+fmt(pendSl)+' cái)':'Không còn phiếu nào chờ xác nhận'}
   const hint=$('pghPendHint');if(hint)hint.textContent=pend.length?pend.length+' phiếu đang chờ xác nhận':'';
 }
-/* Xác nhận nhận đủ từ phiếu giao hàng: ghi thẳng thành Phiếu nhận (ngày theo phiếu giao hàng, SL theo phiếu giao hàng),
-   bỏ qua (để Sếp kiểm tra tay) dòng nào SL vượt quá phần còn lại của cấp phát đã khớp. */
+/* Xác nhận nhận đủ từ phiếu giao hàng: ghi thẳng thành Phiếu nhận (ngày theo phiếu giao hàng, SL theo phiếu giao hàng).
+   Dòng nào đang khớp (hoặc chưa khớp) vào thông báo PGH tự tạo kiểu gộp chung cũ (PGH-MM/YYYY...) sẽ được
+   TÁCH RA thành thông báo RIÊNG của chính phiếu giao hàng đó — số thông báo lấy theo đúng số phiếu giao hàng,
+   ngày lấy theo đúng ngày trên phiếu, giống hệt cách 1 file PDF thông báo điều động tạo 1 thông báo riêng —
+   không cộng dồn/ghi đè vào thông báo PGH gộp chung cũ nữa. Chỉ bỏ qua (để kiểm tra tay) khi khớp vào thông
+   báo CHÍNH THỨC (TB-EVNHCMC có văn bản gốc) mà SL vượt số đã công bố — không được tự ý sửa số liệu chính thức. */
 async function pgConfirmReceive(ids){
-  if(!S.db) return {ok:0,skipped:[]};
+  if(!S.db) return {ok:0,skipped:[],rerouted:0};
   const src=(ids&&ids.length?ids.map(id=>S.pgh[id]).filter(Boolean):Object.values(S.pgh||{})).filter(p=>!p.used);
-  let ok=0;const skipped=[];
+  let ok=0,rerouted=0;const skipped=[];
+  const tbCache={},cpCache={},sttNext={};
   for(const p of src){
-    const c=S.cp[p.cp];
-    if(!c){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (chưa khớp được dòng cấp phát nào)');continue}
+    let c=S.cp[p.cp];
+    const wasAutoOrUnmatched=!c||tbIsAutoPgh(c.tb);
+    if(wasAutoOrUnmatched){
+      if(!tbCache[p.so]) tbCache[p.so]=await ensureAutoTbForPGH(p.so,p.ngay,p.pxkNoiBo);
+      const newTbId=tbCache[p.so];
+      const key=newTbId+'|'+p.ma+'|'+(p.lo||'');
+      let newCpId;
+      if(cpCache[key]){newCpId=cpCache[key].id;cpCache[key].sl+=Number(p.sl)||0;try{await S.db.doc('capphat/'+newCpId).update({sl:cpCache[key].sl})}catch(e){}}
+      else{
+        if(sttNext[newTbId]==null) sttNext[newTbId]=Object.values(S.cp).filter(x=>x.tb===newTbId).length+1;
+        newCpId=await ensureAutoCp(newTbId,p.ma,p.lo,Number(p.sl)||0,sttNext[newTbId]);sttNext[newTbId]++;
+        cpCache[key]={id:newCpId,sl:Number(p.sl)||0};
+      }
+      try{await S.db.doc('phieugiaohang/'+p.id).set({tb:newTbId,cp:newCpId},{merge:true})}catch(e){}
+      c={id:newCpId,sl:cpCache[key].sl,tb:newTbId};
+      if(c.id!==p.cp) rerouted++;
+    }
     const con=Math.max((Number(c.sl)||0)-nhanOf(c.id),0);const sl=Number(p.sl)||0;
     if(!(sl>0)||sl>con){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (SL phiếu '+fmt(sl)+', cấp phát chỉ còn '+fmt(con)+' — vào Nhập phiếu nhận kiểm tra tay)');continue}
     try{
@@ -1968,12 +1992,12 @@ async function pgConfirmReceive(ids){
       ok++;
     }catch(e){skipped.push(p.so+' · '+p.ma+(p.lo?' · lô '+p.lo:'')+' (lỗi ghi: '+(e&&e.code||'lỗi')+')')}
   }
-  return {ok,skipped};
+  return {ok,skipped,rerouted};
 }
 $('pghConfirmAll').addEventListener('click',async()=>{
   $('pghConfirmAll').disabled=true;hideMsg('pghConfirmMsg');
-  const {ok,skipped}=await pgConfirmReceive();
-  showMsg('pghConfirmMsg',skipped.length?'err':'ok','Đã xác nhận '+ok+' phiếu thành Phiếu nhận, cập nhật ngay vào Tổng quan.'+(skipped.length?' Còn '+skipped.length+' phiếu lệch số lượng, chưa xác nhận được: '+skipped.join('; ')+'.':''));
+  const {ok,skipped,rerouted}=await pgConfirmReceive();
+  showMsg('pghConfirmMsg',skipped.length?'err':'ok','Đã xác nhận '+ok+' phiếu thành Phiếu nhận, cập nhật ngay vào Tổng quan.'+(rerouted?' ('+rerouted+' dòng được tách thành thông báo riêng theo số phiếu giao hàng, không gộp vào PGH cũ.)':'')+(skipped.length?' Còn '+skipped.length+' phiếu lệch số lượng, chưa xác nhận được: '+skipped.join('; ')+'.':''));
   renderPgh();
 });
 $('pgFile').addEventListener('change',e=>{const f=e.target.files;pgLoad(f).then(()=>{e.target.value=''})});
@@ -1995,8 +2019,8 @@ $('pgOut').addEventListener('click',e=>{
 });
 $('pghBody').addEventListener('click',async e=>{
   const okId=e.target.dataset.pgok;
-  if(okId){e.target.disabled=true;const {ok,skipped}=await pgConfirmReceive([okId]);
-    if(ok)showMsg('pghConfirmMsg','ok','Đã xác nhận thành Phiếu nhận, cập nhật ngay vào Tổng quan.');
+  if(okId){e.target.disabled=true;const {ok,skipped,rerouted}=await pgConfirmReceive([okId]);
+    if(ok)showMsg('pghConfirmMsg','ok','Đã xác nhận thành Phiếu nhận, cập nhật ngay vào Tổng quan.'+(rerouted?' (Đã tách thành thông báo riêng theo số phiếu giao hàng, không gộp vào PGH cũ.)':''));
     else if(skipped.length)showMsg('pghConfirmMsg','err','Chưa xác nhận được: '+skipped[0]);
     renderPgh();return}
   const id=e.target.dataset.pgdel;if(!id)return;if(!confirm('Xóa phiếu giao hàng '+(S.pgh[id]?S.pgh[id].so:'')+'?'))return;S.db.doc('phieugiaohang/'+id).delete().catch(()=>{})});
